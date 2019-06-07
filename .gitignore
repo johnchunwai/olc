@@ -1,0 +1,10 @@
+.vs/
+*.lib
+*.pdb
+*.exe
+*.ilk
+*.vcxproj.*
+*.log
+**/x64/**
+*.swp
+
