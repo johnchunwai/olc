@@ -67,7 +67,7 @@ namespace olc
 			// determine player distance to wall/boundary
 			for (int x = 0; x < scnbuf.width(); ++x) {
 				// for each column, calculate projected ray angle in world space
-				auto rayangle = (player_a + fov / 2.0f) - (x * scnbuf.width() / fov);
+				auto rayangle = (player_a + fov / 2.0f) - (x * fov / scnbuf.width());
 
 				// find distance to closest collision
 				float dist2wall = 0.0f;
