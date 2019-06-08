@@ -8,7 +8,7 @@
 #include <random>
 #include <iostream>
 #include "windows.h"
-#include "console_screen_buffer.h"
+#include "common.h"
 
 using namespace std;
 

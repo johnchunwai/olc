@@ -1,4 +1,7 @@
-#include "console_screen_buffer.h"
+#include "common.h"
+#include <iostream>
+
+using namespace std;
 
 console_screen_buffer::console_screen_buffer(int w, int h)
 	: _width(w),
@@ -32,4 +35,10 @@ void console_screen_buffer::close() {
 void console_screen_buffer::display() const {
 	DWORD bytes_written;
 	WriteConsoleOutputCharacterW(_console, _screen.data(), dimension(), { 0, 0 }, &bytes_written);
+}
+
+void pause()
+{
+	cout << "Press enter to quit";
+	cin.ignore();
 }

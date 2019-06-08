@@ -28,3 +28,4 @@ private:
 	std::wstring _screen;
 };
 
+void pause();
