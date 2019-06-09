@@ -178,7 +178,6 @@ namespace olc
 				int ceiling = min_ceiling + static_cast<int>(dist2wall * dist_2_ceiling_ratio);
 				int floor = scnbuf.height() - ceiling;
 
-				wchar_t shade = dist2wall_to_shade(dist2wall, view_dist);
 
 				for (int y = 0; y < scnbuf.height(); ++y) {
 					// each row
@@ -187,10 +186,19 @@ namespace olc
 						screen.at(scnidx) = L' ';
 					}
 					else if (y >= ceiling && y < floor) {
+						wchar_t shade = dist2wall_to_shade(dist2wall, view_dist);
 						screen.at(scnidx) = shade;
 					}
 					else {
-						screen.at(scnidx) = L'*';
+						// shade floor based on distance
+						float brightness = (static_cast<float>(y) - scnbuf.height() / 2.0f) / (scnbuf.height() / 2.0f);
+						wchar_t shade;
+						if (brightness < 0.25f) shade = L'#';
+						else if (brightness < 0.5f) shade = L'+';
+						else if (brightness < 0.75f) shade = L'-';
+						else if (brightness < 0.9f) shade = L'.';
+						else shade = L' ';
+						screen.at(scnidx) = shade;
 					}
 				}
 			}
