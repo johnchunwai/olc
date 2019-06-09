@@ -12,14 +12,14 @@ namespace olc
 	{
 		_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
 		_console = CreateConsoleScreenBuffer(GENERIC_WRITE | GENERIC_READ, 0, nullptr, CONSOLE_TEXTMODE_BUFFER, nullptr);
-		SMALL_RECT rect{ 0, 0, short(_width - 1), short(_height - 1) };
-		SetConsoleWindowInfo(_console, true, &rect);
-		SetConsoleScreenBufferSize(_console, { (short)_width, (short)_height });
 		CONSOLE_FONT_INFOEX font_info{ sizeof(CONSOLE_FONT_INFOEX) };
 		bool b = GetCurrentConsoleFontEx(_console, false, &font_info);
 		font_info.dwFontSize = { 30, 30 };
 		b = SetCurrentConsoleFontEx(_console, false, &font_info);
-		SetConsoleActiveScreenBuffer(_console);
+		b = SetConsoleScreenBufferSize(_console, { (short)_width, (short)_height });
+		SMALL_RECT rect{ 0, 0, short(_width - 1), short(_height - 1) };
+		b = SetConsoleWindowInfo(_console, true, &rect);
+		b = SetConsoleActiveScreenBuffer(_console);
 	}
 
 	console_screen_buffer::~console_screen_buffer() {

@@ -1,6 +1,9 @@
 #include "common.h"
 #include <iostream>
 #include <cmath>
+#include <chrono>
+#include <cwchar>
+
 
 using namespace std;
 
@@ -10,28 +13,53 @@ namespace olc
 	constexpr int g_screen_height = 40;
 	constexpr int g_map_width = 16;
 	constexpr int g_map_height = 16;
+	constexpr int g_mini_map_offset_x = 1;
+	constexpr int g_mini_map_offset_y = 1;
 
-	wchar_t dist2wall_to_shade(float dist2wall, float depth)
+	constexpr float epsilon = 0.00001f;
+	constexpr float pi = 3.14159f;
+	constexpr float fov = 106.0f * pi / 180.0f;	// 106 degree fov
+	constexpr float view_dist = 16.0f;
+
+	wchar_t dist2wall_to_shade(float dist2wall, float view_dist)
 	{
 		wchar_t shade;
-		if (dist2wall <= depth / 4.0f)
+		if (dist2wall <= view_dist / 4.0f)
 			shade = 0x2588;		// very close
-		else if (dist2wall < depth / 3.0f)
+		else if (dist2wall < view_dist / 3.0f)
 			shade = 0x2593;
-		else if (dist2wall < depth / 2.0f)
+		else if (dist2wall < view_dist / 2.0f)
 			shade = 0x2592;
-		else if (dist2wall < depth)
+		else if (dist2wall < view_dist)
 			shade = 0x2591;
 		else
 			shade = L' ';		// too far
 		return shade;
 	}
 
+	struct player_t
+	{
+		float x;
+		float y;
+		float dir;		// player direction, 0 means East. +ve is anti-clockwise
+		float vel;		// veclocity
+		float ang_vel;	// angular velocity
+	};
+
 	int main()
 	{
 		console_screen_buffer scnbuf(120, 40);
 		wstring& screen = scnbuf.screen();
 
+		//
+		// The map is 16 x 16.
+		//
+		// Player's movement is floating point. The actual range of movement for player is from 0.0 - 15.99 (note that it goes above 15.0).
+		// We're basically treating integer coord 0 for the map as a block holding the range 0.0 - 0.99, and so on.
+		//
+		// Another thing to note is that windows's y-axis is flipped compare to math models. Therefore, vector calculations and trig functions
+		// will have the y component's sign flipped (eg. -sin(dir) instead of sin(dir).
+		//
 		wstring map{
 			L"#########......."
 			L"#..............."
@@ -50,24 +78,70 @@ namespace olc
 			L"#..............#"
 			L"################" };
 
+		//
 		// logic
-		constexpr float pi = 3.14159f;
+		//
 		// for ray casting
 		constexpr float stepsize = 0.1f;
+		//
+		// We split the screen into top and bottom half. The ceiling height and floor height are the same and increases when distance to wall increases.
+		//
+		constexpr int max_wall_height = g_screen_height - 2;						// closest
+		constexpr int min_wall_height = static_cast<int>(g_screen_height * 0.2f);	// farthest
+		constexpr int min_ceiling = (g_screen_height - max_wall_height) / 2;		// closest
+		constexpr int max_ceiling = (g_screen_height - min_wall_height) / 2;		// farthest
+		constexpr float dist_2_ceiling_ratio = view_dist / (max_ceiling - min_ceiling);
 
-		float player_x = 14.7f;
-		float player_y = 5.09f;
-		float player_a = pi / 2.0f;	// player angle, 0 means E. +ve is anti-clockwise. Default facing north.
-		float fov = pi / 4.0f;	// field of view
-		float depth = 16.0f;	// max render distance
+		player_t player{ 14.7f, 5.09f, pi / 2.0f,  1.0f, 0.75f };
+		//player_t player{ 15.99f, 1.00f, pi,  1.0f, 0.75f };
+
+
+		auto curr_time = chrono::system_clock::now();
+		auto prev_time = chrono::system_clock::now();
 
 		while (true) {
+
+			// handle timing
+			curr_time = chrono::system_clock::now();
+			chrono::duration<float> elapsed_dur = curr_time - prev_time;
+			prev_time = curr_time;
+			float elapsed = elapsed_dur.count();
+
+			// handle input
+			// mod with 2pi to avoid it ever overflow
+			if (0x8000 & GetAsyncKeyState('A') || 0x8000 & GetAsyncKeyState(VK_LEFT))
+				player.dir = fmodf(player.dir + player.ang_vel * elapsed, 2 * pi);
+			else if (0x8000 & GetAsyncKeyState('D') || 0x8000 & GetAsyncKeyState(VK_RIGHT))
+				player.dir = fmodf(player.dir - player.ang_vel * elapsed, 2 * pi);
+			
+			float mov_dir = 0.0f;	// 1 for moving forward, -1 for moving backward
+			if (0x8000 & GetAsyncKeyState('W') || 0x8000 & GetAsyncKeyState(VK_UP))
+				mov_dir = 1.0f;
+			else if (0x8000 & GetAsyncKeyState('S') || 0x8000 & GetAsyncKeyState(VK_DOWN))
+				mov_dir = -1.0f;
+			
+			//
+			// note that sin(dir) becomes -sin(dir) because the y-axis of windows coord is 0 on top and height - 1 at bottom
+			//
+
+			if (fabsf(mov_dir) > epsilon) {
+				float movx = cosf(player.dir) * player.vel * elapsed * mov_dir;
+				float movy = -sinf(player.dir) * player.vel * elapsed * mov_dir;
+				player.x += movx;
+				player.y += movy;
+				// check for collision
+				if (player.x < 0.0f || player.x >= g_map_width || player.y < 0.0f || player.y >= g_map_height ||
+					map.at(static_cast<int>(player.y) * g_map_width + static_cast<int>(player.x)) == L'#') {
+					player.x -= movx;
+					player.y -= movy;
+				}
+			}
 
 			// render player fov
 			// determine player distance to wall/boundary
 			for (int x = 0; x < scnbuf.width(); ++x) {
 				// for each column, calculate projected ray angle in world space
-				auto rayangle = (player_a + fov / 2.0f) - (x * fov / scnbuf.width());
+				auto rayangle = (player.dir + fov / 2.0f) - (x * fov / scnbuf.width());
 
 				// find distance to closest collision
 				float dist2wall = 0.0f;
@@ -75,22 +149,22 @@ namespace olc
 
 				// unit vec of ray angle
 				float eyex = cosf(rayangle);
-				float eyey = sinf(rayangle);
+				float eyey = -sinf(rayangle);
 
 				// increment step by step until hitting wall or max view dist
-				while (!hitwall && dist2wall < depth) {
+				while (!hitwall && dist2wall < view_dist) {
 					dist2wall += stepsize;
-					int testx = static_cast<int>(player_x + eyex * dist2wall);
-					int testy = static_cast<int>(player_y + eyey * dist2wall);
+					float testx = player.x + eyex * dist2wall;
+					float testy = player.y + eyey * dist2wall;
 
 					// check out of bounds
-					if (testx < 0 || testx >= g_map_width || testy < 0 || testy >= g_map_height) {
+					if (testx < 0.0f || testx >= g_map_width || testy < 0.0f || testy >= g_map_height) {
 						hitwall = true;
-						dist2wall = depth;
+						dist2wall = view_dist;
 					}
 					else {
 						// check hit wall
-						if (map.at(testy * g_map_width + testx) == L'#') {
+						if (map.at(static_cast<int>(testy) * g_map_width + static_cast<int>(testx)) == L'#') {
 							hitwall = true;
 
 							// TODO: highlight wall boundaries
@@ -101,18 +175,18 @@ namespace olc
 				// calculate dist to ceiling and floor
 				// we split the screen into top and bottom half
 				float half_scn_height = static_cast<float>(scnbuf.height()) / 2.0f;
-				int ceiling = static_cast<int>(half_scn_height - half_scn_height / dist2wall);
+				int ceiling = min_ceiling + static_cast<int>(dist2wall * dist_2_ceiling_ratio);
 				int floor = scnbuf.height() - ceiling;
 
-				wchar_t shade = dist2wall_to_shade(dist2wall, depth);
+				wchar_t shade = dist2wall_to_shade(dist2wall, view_dist);
 
 				for (int y = 0; y < scnbuf.height(); ++y) {
 					// each row
 					int scnidx = y * scnbuf.width() + x;
-					if (y <= ceiling) {
+					if (y < ceiling) {
 						screen.at(scnidx) = L' ';
 					}
-					else if (y > ceiling && y <= floor) {
+					else if (y >= ceiling && y < floor) {
 						screen.at(scnidx) = shade;
 					}
 					else {
@@ -123,10 +197,22 @@ namespace olc
 			// draw mini-map
 			for (int mx = 0; mx < g_map_width; ++mx) {
 				for (int my = 0; my < g_map_height; ++my) {
-					screen.at((my + 1) * scnbuf.width() + mx) = map.at(my * g_map_width + mx);
+					screen.at((my + g_mini_map_offset_y) * scnbuf.width() + mx + g_mini_map_offset_x) = map.at(my * g_map_width + mx);
 				}
 			}
-			screen.at(static_cast<int>(player_y) * scnbuf.width() + static_cast<int>(player_x)) = L'P';
+			// draw player and player orientation on mini-map
+			screen.at((static_cast<int>(player.y) + g_mini_map_offset_y) * scnbuf.width() + static_cast<int>(player.x) + g_mini_map_offset_x) = L'P';
+			float facex = cosf(player.dir);
+			int player_face_x = (fabsf(facex) < 0.5f) ? 0 : (facex > 0.0f) ? 1 : -1;
+			float facey = -sinf(player.dir);
+			int player_face_y = (fabsf(facey) < 0.5f) ? 0 : (facey > 0.0f) ? 1 : -1;
+			screen.at((static_cast<int>(player.y) + player_face_y + g_mini_map_offset_y) * scnbuf.width() + static_cast<int>(player.x) + player_face_x + g_mini_map_offset_x) = L'\x2666';
+			// draw player location and orientation in text
+			wchar_t text[17];
+			swprintf_s(text, sizeof(text), L"x=%05.2f, y=%05.2f", player.x, player.y);
+			scnbuf.screen().replace(g_mini_map_offset_y * scnbuf.width() + g_map_width + g_mini_map_offset_x + 1, wcslen(text), text);
+			swprintf_s(text, sizeof(text), L"dir=%03d", static_cast<int>(player.dir * 180.0f / pi + 360.0f) % 360);
+			scnbuf.screen().replace((g_mini_map_offset_y + 1) * scnbuf.width() + g_map_width + g_mini_map_offset_x + 1, wcslen(text), text);
 
 			// display
 			scnbuf.display();
