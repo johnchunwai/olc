@@ -8,7 +8,7 @@ namespace olc
 	class console_screen_buffer
 	{
 	public:
-		console_screen_buffer(int w, int h);
+		console_screen_buffer(int w, int h, int16_t font_size);
 
 		virtual ~console_screen_buffer();
 

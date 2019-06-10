@@ -3,14 +3,16 @@
 #include <cmath>
 #include <chrono>
 #include <cwchar>
+#include <vector>
 
 
 using namespace std;
 
 namespace olc
 {
-	constexpr int g_screen_width = 120;
+	constexpr int g_screen_width = 160;
 	constexpr int g_screen_height = 40;
+	constexpr int16_t g_font_size = 16;
 	constexpr int g_map_width = 16;
 	constexpr int g_map_height = 16;
 	constexpr int g_mini_map_offset_x = 1;
@@ -18,7 +20,7 @@ namespace olc
 
 	constexpr float epsilon = 0.00001f;
 	constexpr float pi = 3.14159f;
-	constexpr float fov = 106.0f * pi / 180.0f;	// 106 degree fov
+	constexpr float fov = 90.0f * pi / 180.0f;	// 106 degree fov
 	constexpr float view_dist = 16.0f;
 
 	wchar_t dist2wall_to_shade(float dist2wall, float view_dist)
@@ -46,9 +48,61 @@ namespace olc
 		float ang_vel;	// angular velocity
 	};
 
+	struct wall_corner_t
+	{
+		float x;
+		float y;
+		float player_to_corner_vec_x;	// unit vec
+		float player_to_corner_vec_y;	// unit vec
+		float dist_to_player;
+		float dot_with_eye;				// dot between 2 unit vec's
+	};
+
+	vector<wall_corner_t> init_wall_corners(const player_t& player, float eyex, float eyey, int wall_x, int wall_y)
+	{
+		vector<wall_corner_t> corners(4);
+		for (int tx = 0; tx < 2; ++tx) {
+			for (int ty = 0; ty < 2; ++ty) {
+				float x = static_cast<float>(wall_x) + tx;
+				float y = static_cast<float>(wall_y) + ty;
+				float vx = x - player.x;
+				float vy = y - player.y;
+				float d = sqrt(vx * vx + vy * vy);
+				vx = vx / d;
+				vy = vy / d;
+				float dot = eyex * vx + eyey * vy;
+				corners.push_back({ x, y, vx, vy, d, dot });
+			}
+		}
+		return corners;
+	}
+
+	bool is_wall_boundary(const vector<wall_corner_t>& corners, wstring& map)
+	{
+		float bound = 0.01f;
+		for (auto corner : corners) {
+			// check if it's visible to the player first
+			// move from corner to player by 0.5 dist and see if it hits a wall
+			float testx = corner.x - corner.player_to_corner_vec_x * 0.5f;
+			float testy = corner.y - corner.player_to_corner_vec_y * 0.5f;
+			if (map.at(static_cast<int>(testy) * g_map_width + static_cast<int>(testx)) == L'#') {
+				// not visible so, not a boundary to be displayed
+				// try next corner
+				continue;
+			}
+
+			// this corner is visible to the player. See if this is within the bounds of the ray cast from eye
+			float angle_with_eye = acosf(corner.dot_with_eye);
+			if (angle_with_eye < bound) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	int main()
 	{
-		console_screen_buffer scnbuf(120, 40);
+		console_screen_buffer scnbuf(g_screen_width, g_screen_height, g_font_size);
 		wstring& screen = scnbuf.screen();
 
 		//
@@ -86,13 +140,13 @@ namespace olc
 		//
 		// We split the screen into top and bottom half. The ceiling height and floor height are the same and increases when distance to wall increases.
 		//
-		constexpr int max_wall_height = g_screen_height - 2;						// closest
+		constexpr int max_wall_height = g_screen_height - 6;						// closest
 		constexpr int min_wall_height = static_cast<int>(g_screen_height * 0.2f);	// farthest
 		constexpr int min_ceiling = (g_screen_height - max_wall_height) / 2;		// closest
 		constexpr int max_ceiling = (g_screen_height - min_wall_height) / 2;		// farthest
 		constexpr float dist_2_ceiling_ratio = view_dist / (max_ceiling - min_ceiling);
 
-		player_t player{ 14.7f, 5.09f, pi / 2.0f,  1.0f, 0.75f };
+		player_t player{ 14.7f, 5.09f, pi / 2.0f,  5.0f, 5.0f * 0.75f };
 		//player_t player{ 15.99f, 1.00f, pi,  1.0f, 0.75f };
 
 
@@ -146,6 +200,7 @@ namespace olc
 				// find distance to closest collision
 				float dist2wall = 0.0f;
 				bool hitwall = false;
+				bool boundary = false;
 
 				// unit vec of ray angle
 				float eyex = cosf(rayangle);
@@ -159,15 +214,18 @@ namespace olc
 
 					// check out of bounds
 					if (testx < 0.0f || testx >= g_map_width || testy < 0.0f || testy >= g_map_height) {
-						hitwall = true;
 						dist2wall = view_dist;
 					}
 					else {
 						// check hit wall
-						if (map.at(static_cast<int>(testy) * g_map_width + static_cast<int>(testx)) == L'#') {
+						int wallx = static_cast<int>(testx);
+						int wally = static_cast<int>(testy);
+						if (map.at(wally * g_map_width + wallx) == L'#') {
 							hitwall = true;
 
-							// TODO: highlight wall boundaries
+							// highlight wall boundaries
+							vector<wall_corner_t> wall_corners = init_wall_corners(player, eyex, eyey, wallx, wally);
+							boundary = is_wall_boundary(wall_corners, map);
 						}
 					}
 				}
@@ -178,7 +236,6 @@ namespace olc
 				int ceiling = min_ceiling + static_cast<int>(dist2wall * dist_2_ceiling_ratio);
 				int floor = scnbuf.height() - ceiling;
 
-
 				for (int y = 0; y < scnbuf.height(); ++y) {
 					// each row
 					int scnidx = y * scnbuf.width() + x;
@@ -186,7 +243,7 @@ namespace olc
 						screen.at(scnidx) = L' ';
 					}
 					else if (y >= ceiling && y < floor) {
-						wchar_t shade = dist2wall_to_shade(dist2wall, view_dist);
+						wchar_t shade = boundary ? L' ' : dist2wall_to_shade(dist2wall, view_dist);
 						screen.at(scnidx) = shade;
 					}
 					else {
@@ -216,11 +273,9 @@ namespace olc
 			int player_face_y = (fabsf(facey) < 0.5f) ? 0 : (facey > 0.0f) ? 1 : -1;
 			screen.at((static_cast<int>(player.y) + player_face_y + g_mini_map_offset_y) * scnbuf.width() + static_cast<int>(player.x) + player_face_x + g_mini_map_offset_x) = L'\x2666';
 			// draw player location and orientation in text
-			wchar_t text[17];
-			swprintf_s(text, sizeof(text), L"x=%05.2f, y=%05.2f", player.x, player.y);
-			scnbuf.screen().replace(g_mini_map_offset_y * scnbuf.width() + g_map_width + g_mini_map_offset_x + 1, wcslen(text), text);
-			swprintf_s(text, sizeof(text), L"dir=%03d", static_cast<int>(player.dir * 180.0f / pi + 360.0f) % 360);
-			scnbuf.screen().replace((g_mini_map_offset_y + 1) * scnbuf.width() + g_map_width + g_mini_map_offset_x + 1, wcslen(text), text);
+			wchar_t text[37];
+			swprintf_s(text, sizeof(text), L"x=%05.2f, y=%05.2f, dir=%03d, fps=%05.2f", player.x, player.y, static_cast<int>(player.dir * 180.0f / pi + 360.0f) % 360, 1.0f / elapsed);
+			scnbuf.screen().replace(g_mini_map_offset_x, wcslen(text), text);
 
 			// display
 			scnbuf.display();

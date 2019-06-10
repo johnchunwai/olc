@@ -5,7 +5,7 @@ using namespace std;
 
 namespace olc
 {
-	console_screen_buffer::console_screen_buffer(int w, int h)
+	console_screen_buffer::console_screen_buffer(int w, int h, int16_t font_size)
 		: _width(w),
 		_height(h),
 		_screen(w* h, L' ')
@@ -13,11 +13,12 @@ namespace olc
 		_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
 		_console = CreateConsoleScreenBuffer(GENERIC_WRITE | GENERIC_READ, 0, nullptr, CONSOLE_TEXTMODE_BUFFER, nullptr);
 		CONSOLE_FONT_INFOEX font_info{ sizeof(CONSOLE_FONT_INFOEX) };
-		bool b = GetCurrentConsoleFontEx(_console, false, &font_info);
-		font_info.dwFontSize = { 30, 30 };
-		b = SetCurrentConsoleFontEx(_console, false, &font_info);
+		bool b = GetCurrentConsoleFontEx(_console, true, &font_info);
+		font_info.dwFontSize = { 0, font_size };
+		b = SetCurrentConsoleFontEx(_console, true, &font_info);
 		b = SetConsoleScreenBufferSize(_console, { (short)_width, (short)_height });
 		SMALL_RECT rect{ 0, 0, short(_width - 1), short(_height - 1) };
+		auto tmp = GetLargestConsoleWindowSize(_console);
 		b = SetConsoleWindowInfo(_console, true, &rect);
 		b = SetConsoleActiveScreenBuffer(_console);
 	}

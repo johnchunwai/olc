@@ -16,6 +16,7 @@ namespace olc
 {
 	constexpr int g_screen_width = 80;
 	constexpr int g_screen_height = 30;
+	constexpr int16_t g_font_size = 30;
 	constexpr int g_field_width = 12;
 	constexpr int g_field_height = 18;
 	constexpr int g_field_offset_y = 6;
@@ -103,7 +104,7 @@ namespace olc
 		randgen tetr_gen(0, g_tetromino_count - 1);
 
 		// init screen buffer
-		console_screen_buffer screenbuf(g_screen_width, g_screen_height);
+		console_screen_buffer screenbuf(g_screen_width, g_screen_height, g_font_size);
 		wstring& screen = screenbuf.screen();
 
 		// initialize the 7 block types
