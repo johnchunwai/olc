@@ -274,7 +274,7 @@ namespace olc
 			screen.at((static_cast<int>(player.y) + player_face_y + g_mini_map_offset_y) * scnbuf.width() + static_cast<int>(player.x) + player_face_x + g_mini_map_offset_x) = L'\x2666';
 			// draw player location and orientation in text
 			wchar_t text[37];
-			swprintf_s(text, sizeof(text), L"x=%05.2f, y=%05.2f, dir=%03d, fps=%05.2f", player.x, player.y, static_cast<int>(player.dir * 180.0f / pi + 360.0f) % 360, 1.0f / elapsed);
+			swprintf_s(text, sizeof(text) / sizeof(*text), L"x=%05.2f, y=%05.2f, dir=%03d, fps=%05.2f", player.x, player.y, static_cast<int>(player.dir * 180.0f / pi + 360.0f) % 360, 1.0f / elapsed);
 			scnbuf.screen().replace(g_mini_map_offset_x, wcslen(text), text);
 
 			// display
