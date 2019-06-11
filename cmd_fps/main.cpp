@@ -10,7 +10,7 @@ using namespace std;
 
 namespace olc
 {
-	constexpr int g_screen_width = 160;
+	constexpr int g_screen_width = 120;
 	constexpr int g_screen_height = 40;
 	constexpr int16_t g_font_size = 16;
 	constexpr int g_map_width = 16;
@@ -140,11 +140,11 @@ namespace olc
 		//
 		// We split the screen into top and bottom half. The ceiling height and floor height are the same and increases when distance to wall increases.
 		//
-		constexpr int max_wall_height = g_screen_height - 6;						// closest
-		constexpr int min_wall_height = static_cast<int>(g_screen_height * 0.2f);	// farthest
+		constexpr int max_wall_height = static_cast<int>(g_screen_height * 0.9f);						// closest
+		constexpr int min_wall_height = static_cast<int>(g_screen_height * 0.1f);	// farthest
 		constexpr int min_ceiling = (g_screen_height - max_wall_height) / 2;		// closest
 		constexpr int max_ceiling = (g_screen_height - min_wall_height) / 2;		// farthest
-		constexpr float dist_2_ceiling_ratio = view_dist / (max_ceiling - min_ceiling);
+		constexpr float dist_2_ceiling_ratio = (max_ceiling - min_ceiling) / view_dist;
 
 		player_t player{ 14.7f, 5.09f, pi / 2.0f,  5.0f, 5.0f * 0.75f };
 		//player_t player{ 15.99f, 1.00f, pi,  1.0f, 0.75f };
@@ -291,5 +291,10 @@ namespace olc
 
 int main()
 {
-	olc::main();
+	try {
+		olc::main();
+	}
+	catch (runtime_error& e) {
+		cerr << e.what();
+	}
 }
