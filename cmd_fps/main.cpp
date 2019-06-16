@@ -77,7 +77,7 @@ namespace olc
 		return corners;
 	}
 
-	bool is_wall_boundary(const vector<wall_corner_t>& corners, wstring& map)
+	bool is_wall_boundary(const vector<wall_corner_t>& corners, wstring_view map)
 	{
 		float bound = 0.01f;
 		for (auto corner : corners) {
@@ -114,7 +114,7 @@ namespace olc
 		// Another thing to note is that windows's y-axis is flipped compare to math models. Therefore, vector calculations and trig functions
 		// will have the y component's sign flipped (eg. -sin(dir) instead of sin(dir).
 		//
-		wstring map{
+		wstring_view map{
 			L"#########......."
 			L"#..............."
 			L"#.......########"
@@ -277,7 +277,7 @@ namespace olc
 			// cap fps to avoid overflowing our text buffer. This might happen when the program first starts.
 			float fps = min(1.0f / elapsed, 999.99f);
 			swprintf_s(text, sizeof(text) / sizeof(*text), L"x=%05.2f, y=%05.2f, dir=%03d, fps=%06.2f", player.x, player.y, static_cast<int>(player.dir * 180.0f / pi + 360.0f) % 360, fps);
-			scnbuf.screen().replace(g_mini_map_offset_x, wcslen(text), text);
+			screen.replace(g_mini_map_offset_x, wcslen(text), text);
 
 			// display
 			scnbuf.display();

@@ -79,7 +79,7 @@ namespace olc {
 
 				// === logic
 				snake.push_front({ snake.front().x + snake_dir_x, snake.front().y + snake_dir_y });
-				const snake_segment& head = snake.front();
+				const auto& head = snake.front();
 
 				// collision with food
 				if (head.x == foodx && head.y == foody) {

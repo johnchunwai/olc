@@ -44,17 +44,7 @@ namespace olc
 			}
 			b = SetConsoleScreenBufferSize(_console, { (short)_width, (short)_height });
 			if (!b) {
-				//CONSOLE_SCREEN_BUFFER_INFO info;
-				//GetConsoleScreenBufferInfo(_console, &info);
-				//auto winx = info.srWindow.Right - info.srWindow.Left;
-				//auto winy = info.srWindow.Bottom - info.srWindow.Top;
-				//auto minx = max(GetSystemMetrics(SM_CXMIN), winx);
-				//auto miny = max(GetSystemMetrics(SM_CYMIN), winy);
-				//auto maxx = info.dwMaximumWindowSize.X;
-				//auto maxy = info.dwMaximumWindowSize.Y;
 				throw std::runtime_error("Failed to set screen buffer size. GetLastError() returns "s + to_string(GetLastError()));
-				//+
-				//	"\nmin x = " + to_string(minx) + ", min y = " + to_string(miny) + ", max x = " + to_string(maxx) + ", max y = " + to_string(maxy));
 			}
 			if (!shrinking) {
 				b = SetConsoleWindowInfo(_console, true, &winrect);
