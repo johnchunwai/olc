@@ -80,7 +80,7 @@ namespace olc
 	bool is_wall_boundary(const vector<wall_corner_t>& corners, wstring_view map)
 	{
 		float bound = 0.01f;
-		for (auto corner : corners) {
+		for (auto&& corner : corners) {
 			// check if it's visible to the player first
 			// move from corner to player by 0.5 dist and see if it hits a wall
 			float testx = corner.x - corner.player_to_corner_vec_x * 0.5f;

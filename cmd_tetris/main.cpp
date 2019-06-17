@@ -309,7 +309,7 @@ namespace olc
 				this_thread::sleep_for(400ms);
 
 				// remove the line by shifting everything in the field down
-				for (auto& fill_y : fill_lines) {
+				for (auto fill_y : fill_lines) {
 					for (int fx{ 1 }; fx < g_field_width - 1; ++fx) {
 						for (int fy{ fill_y }; fy > 0; --fy) {
 							field.at(fy * g_field_width + fx) = field.at((fy - 1) * g_field_width + fx);
