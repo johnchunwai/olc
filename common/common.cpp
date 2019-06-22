@@ -15,8 +15,13 @@ namespace olc
 		_stdout = GetStdHandle(STD_OUTPUT_HANDLE);
 		_console = CreateConsoleScreenBuffer(GENERIC_WRITE | GENERIC_READ, 0, nullptr, CONSOLE_TEXTMODE_BUFFER, nullptr);
 		try {
+			bool b;
+			b = SetConsoleActiveScreenBuffer(_console);
+			if (!b) {
+				throw std::runtime_error("Failed to set active buffer. GetLastError() returns "s + to_string(GetLastError()));
+			}
 			CONSOLE_FONT_INFOEX font_info{ sizeof(CONSOLE_FONT_INFOEX) };
-			bool b = GetCurrentConsoleFontEx(_console, false, &font_info);
+			b = GetCurrentConsoleFontEx(_console, false, &font_info);
 			font_info.dwFontSize = { font_size, font_size };
 			b = SetCurrentConsoleFontEx(_console, false, &font_info);
 			if (!b) {
@@ -53,10 +58,6 @@ namespace olc
 					throw std::runtime_error("Failed to set console window size. GetLastError() returns "s + to_string(GetLastError()) +
 						"\nThe largest window size allowed is (" + to_string(maxsize.X) + ", " + to_string(maxsize.Y) + ")");
 				}
-			}
-			b = SetConsoleActiveScreenBuffer(_console);
-			if (!b) {
-				throw std::runtime_error("Failed to set active buffer. GetLastError() returns "s + to_string(GetLastError()));
 			}
 		}
 		catch (std::runtime_error&) {

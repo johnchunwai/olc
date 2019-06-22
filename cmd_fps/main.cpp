@@ -11,8 +11,8 @@ using namespace std;
 namespace olc
 {
 	constexpr int g_screen_width = 120;
-	constexpr int g_screen_height = 40;
-	constexpr int16_t g_font_size = 16;
+	constexpr int g_screen_height = 60;
+	constexpr int16_t g_font_size = 12;
 	constexpr int g_map_width = 16;
 	constexpr int g_map_height = 16;
 	constexpr int g_mini_map_offset_x = 1;
