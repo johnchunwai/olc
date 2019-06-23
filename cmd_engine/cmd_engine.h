@@ -11,6 +11,8 @@ Character Set -> Use Unicode. Thanks! - Javidx9
 #include <memory>
 #include <vector>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
 
 
 namespace olc
@@ -113,6 +115,9 @@ namespace olc
 		//virtual bool on_user_destroy();
 
 	private:
+		void gamethread();
+
+	private:
 		static std::wstring format_error(std::wstring_view msg);
 		static bool console_close_handler(DWORD event);
 
@@ -127,5 +132,7 @@ namespace olc
 
 		// static because of the OnDestroy call windows may make
 		static std::atomic<bool> _active;
+		static std::condition_variable _gamethread_ended_cv;
+		static std::mutex _gamethread_mutex;
 	};
 }

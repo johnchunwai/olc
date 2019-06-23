@@ -1,12 +1,31 @@
 #include "cmd_engine.h"
 #include <array>
 #include <stdexcept>
+#include <thread>
 
 
 using namespace std;
 
 namespace olc {
 	std::atomic<bool> cmd_engine::_active{ false };
+	std::condition_variable cmd_engine::_gamethread_ended_cv;
+	std::mutex cmd_engine::_gamethread_mutex;
+
+	cmd_engine::~cmd_engine()
+	{
+		OutputDebugString(L"~cmd_engine()\n");
+		close();
+	}
+
+	void cmd_engine::close()
+	{
+		OutputDebugString(L"close()\n");
+		if (_console != INVALID_HANDLE_VALUE) {
+			SetConsoleActiveScreenBuffer(_orig_console);
+			CloseHandle(_console);
+			_console = INVALID_HANDLE_VALUE;
+		}
+	}
 
 	void cmd_engine::construct_console(int w, int h, int fontw, int fonth)
 	{
@@ -93,23 +112,17 @@ namespace olc {
 	void cmd_engine::start()
 	{
 		_active = true;
+		auto t = thread(&cmd_engine::gamethread, this);
+		t.join();
+	}
+
+	void cmd_engine::gamethread()
+	{
 		while (_active) {
 		}
 		close();
-	}
-
-	cmd_engine::~cmd_engine()
-	{
-		close();
-	}
-
-	void cmd_engine::close()
-	{
-		if (_console != INVALID_HANDLE_VALUE) {
-			SetConsoleActiveScreenBuffer(_orig_console);
-			CloseHandle(_console);
-			_console = INVALID_HANDLE_VALUE;
-		}
+		// notify the gamethread ends
+		_gamethread_ended_cv.notify_all();
 	}
 
 	wstring cmd_engine::format_error(wstring_view msg)
@@ -125,8 +138,14 @@ namespace olc {
 		// handles notifications from windows similar to windows app
 		// we're only interested in the event when user closes the console window
 		if (ctrl_type == CTRL_CLOSE_EVENT) {
-			// TODO: init shutdown sequence
-			OutputDebugString(L"console_close_handler\n");
+			OutputDebugString(L"console_close_handler() begin\n");
+			// init shutdown sequence
+			_active = false;
+
+			// wait for game thread to be exited (to a max of 15 sec)
+			unique_lock<mutex> lk(_gamethread_mutex);
+			_gamethread_ended_cv.wait_for(lk, 15s);
+			OutputDebugString(L"console_close_handler() end\n");
 		}
 		// return true marks the event as processed so events like Ctrl-C won't kill our game.
 		return true;
