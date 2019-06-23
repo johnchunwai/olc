@@ -16,8 +16,7 @@ int main()
 	try {
 		cmd_engine game;
 		game.construct_console(100, 100, 12, 12);
-
-		this_thread::sleep_for(5s);
+		game.start();
 	}
 	catch (olc_exception& e) {
 		wcerr << e.msg() << endl;

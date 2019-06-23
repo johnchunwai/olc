@@ -6,6 +6,8 @@
 using namespace std;
 
 namespace olc {
+	std::atomic<bool> cmd_engine::_active{ false };
+
 	void cmd_engine::construct_console(int w, int h, int fontw, int fonth)
 	{
 		_width = w;
@@ -78,11 +80,22 @@ namespace olc {
 
 			// allocate memory for screen buffer
 			_screen_buf.resize(w * h, { 0,0 });
+
+			// set console event handler
+			SetConsoleCtrlHandler((PHANDLER_ROUTINE) console_close_handler, true);
 		}
 		catch (std::exception&) {
 			close();
 			throw;
 		}
+	}
+
+	void cmd_engine::start()
+	{
+		_active = true;
+		while (_active) {
+		}
+		close();
 	}
 
 	cmd_engine::~cmd_engine()
@@ -106,5 +119,16 @@ namespace olc {
 		wstring s(L"ERROR: ");
 		s.append(msg).append(L"\n\t").append(buf.data());
 		return s;
+	}
+	bool cmd_engine::console_close_handler(DWORD ctrl_type)
+	{
+		// handles notifications from windows similar to windows app
+		// we're only interested in the event when user closes the console window
+		if (ctrl_type == CTRL_CLOSE_EVENT) {
+			// TODO: init shutdown sequence
+			OutputDebugString(L"console_close_handler\n");
+		}
+		// return true marks the event as processed so events like Ctrl-C won't kill our game.
+		return true;
 	}
 }

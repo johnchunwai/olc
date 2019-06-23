@@ -10,6 +10,7 @@ Character Set -> Use Unicode. Thanks! - Javidx9
 #include <string>
 #include <memory>
 #include <vector>
+#include <atomic>
 
 
 namespace olc
@@ -98,7 +99,7 @@ namespace olc
 
 	public:
 		void construct_console(int w, int h, int fontw, int fonth);
-		//void start();
+		void start();
 		virtual void close();
 
 	public:
@@ -112,7 +113,8 @@ namespace olc
 		//virtual bool on_user_destroy();
 
 	private:
-		std::wstring format_error(std::wstring_view msg);
+		static std::wstring format_error(std::wstring_view msg);
+		static bool console_close_handler(DWORD event);
 
 	private:
 		HANDLE _console = INVALID_HANDLE_VALUE;
@@ -122,5 +124,8 @@ namespace olc
 		int _height = 0;
 		SMALL_RECT _rect;
 		std::vector<CHAR_INFO> _screen_buf;
+
+		// static because of the OnDestroy call windows may make
+		static std::atomic<bool> _active;
 	};
 }
