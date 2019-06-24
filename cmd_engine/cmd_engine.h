@@ -9,6 +9,7 @@ Character Set -> Use Unicode. Thanks! - Javidx9
 #include <windows.h>
 #include <string>
 #include <memory>
+#include <array>
 #include <vector>
 #include <atomic>
 #include <condition_variable>
@@ -22,7 +23,6 @@ namespace olc
 	// utility functions
 	//
 	void pause();
-
 
 	namespace color
 	{
@@ -99,9 +99,18 @@ namespace olc
 		std::wstring _msg;
 	};
 
+	struct keystate {
+		bool pressed;
+		bool released;
+		bool held;
+	};
 
 	class cmd_engine
 	{
+	public:
+		static constexpr int g_num_keys = 256;
+		static constexpr int g_num_mouse_buttons = 5;
+
 	public:
 		virtual ~cmd_engine();
 
@@ -110,7 +119,12 @@ namespace olc
 		void start();
 		virtual void close();
 
-	public:
+		keystate get_key(int key_id) { return _keys[key_id]; }
+		keystate get_mouse(int button_id) { return _mouse[button_id]; }
+		int get_mouse_x() { return _mousex; }
+		int get_mouse_y() { return _mousey; }
+
+		bool is_focused() { return _in_focus; }
 
 	protected:
 		// must override
@@ -133,13 +147,23 @@ namespace olc
 		std::wstring _app_name{ L"cmd engine"s };
 
 	private:
-		HANDLE _console = INVALID_HANDLE_VALUE;
-		HANDLE _orig_console = INVALID_HANDLE_VALUE;
-		HANDLE _stdin = INVALID_HANDLE_VALUE;
-		int _width = 0;
-		int _height = 0;
+		HANDLE _console{ INVALID_HANDLE_VALUE };
+		HANDLE _orig_console{ INVALID_HANDLE_VALUE };
+		HANDLE _stdin{ INVALID_HANDLE_VALUE };
+		int _width{ 0 };
+		int _height{ 0 };
 		SMALL_RECT _rect;
 		std::vector<CHAR_INFO> _screen_buf;
+
+		std::array<keystate, g_num_keys> _keys;
+		std::array<short, g_num_keys> _key_old_state;
+		std::array<short, g_num_keys> _key_new_state;
+		std::array<keystate, g_num_mouse_buttons> _mouse;
+		std::array<bool, g_num_mouse_buttons> _mouse_old_state;
+		std::array<bool, g_num_mouse_buttons> _mouse_new_state;
+		int _mousex = 0;
+		int _mousey = 0;
+		bool _in_focus{ true };
 
 		// static as will be used by static console_close_handler
 		static std::atomic<bool> _active;

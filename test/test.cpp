@@ -25,11 +25,7 @@ protected:
 	}
 	virtual bool on_user_destroy() override
 	{
-		static bool b = false;
-		if (!b) {
-			b = true;
-			return false;
-		}
+		this_thread::sleep_for(2s);
 		return true;
 	}
 };

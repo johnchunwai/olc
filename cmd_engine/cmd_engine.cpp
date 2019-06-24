@@ -152,6 +152,8 @@ namespace olc {
 
 	void cmd_engine::gamethread()
 	{
+		constexpr short keydown = 0x8000;
+
 		// init user resources
 		if (!on_user_init()) {
 			_active = false;
@@ -173,8 +175,89 @@ namespace olc {
 			prev_time = curr_time;
 
 			//
-			// TODO: handle input
+			// handle input
 			//
+
+			// keyboard
+			for (int i = 0; i < g_num_keys; ++i) {
+				_key_new_state[i] = GetAsyncKeyState(i);
+
+				// pressed is only true if the key changes from not down to down
+				// released is only true if the key changes from down to not down
+				_keys[i].pressed = false;
+				_keys[i].released = false;
+
+				if (_key_new_state[i] != _key_old_state[i]) {
+					// 0x8000 is key down
+					if (_key_new_state[i] & keydown) {
+						_keys[i].pressed = !_keys[i].held;
+						_keys[i].held = true;
+					}
+					else {
+						_keys[i].released = true;
+						_keys[i].held = false;
+					}
+				}
+				_key_old_state[i] = _key_new_state[i];
+			}
+
+			// mouse
+			array<INPUT_RECORD, 32> inevents;
+			DWORD nevents;
+			GetNumberOfConsoleInputEvents(_stdin, &nevents);
+			if (nevents > 0) {
+				ReadConsoleInput(_stdin, inevents.data(), inevents.size(), &nevents);
+			}
+			for (DWORD i = 0; i < nevents; ++i) {
+				switch (inevents[i].EventType) {
+				case FOCUS_EVENT:
+				{
+					_in_focus = inevents[i].Event.FocusEvent.bSetFocus;
+					break;
+				}
+				case MOUSE_EVENT:
+				{
+					const auto& mouseevent = inevents[i].Event.MouseEvent;
+					switch (mouseevent.dwEventFlags) {
+					case 0:		// button is clicked
+					{
+						for (int m = 0; m < g_num_mouse_buttons; ++m) {
+							_mouse_new_state[m] = (mouseevent.dwButtonState & (1 << m)) > 0;
+						}
+						break;
+					}
+					case MOUSE_MOVED:
+					{
+						_mousex = mouseevent.dwMousePosition.X;
+						_mousey = mouseevent.dwMousePosition.Y;
+						break;
+					}
+					default:
+						break;
+					}
+					break;
+				}
+				default:
+					break;
+				}
+			}
+			for (int m = 0; m < g_num_mouse_buttons; ++m) {
+				_mouse[m].pressed = false;
+				_mouse[m].released = false;
+
+				if (_mouse_new_state[m] != _mouse_old_state[m]) {
+					if (_mouse_new_state[m]) {
+						_mouse[m].pressed = !_mouse[m].held;
+						_mouse[m].held = true;
+					}
+					else {
+						_mouse[m].released = true;
+						_mouse[m].held = false;
+					}
+				}
+
+				_mouse_old_state = _mouse_new_state;
+			}
 
 			//
 			// handle update
