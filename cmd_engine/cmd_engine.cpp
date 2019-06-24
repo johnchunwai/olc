@@ -93,14 +93,14 @@ namespace olc {
 			font_info.dwFontSize = { (short)fontw, (short)fonth };
 			font_info.FontFamily = FF_DONTCARE;
 			font_info.FontWeight = FW_NORMAL;
-			wcscpy_s(font_info.FaceName, sizeof(font_info.FaceName), L"Consolas");
+			wcscpy_s(font_info.FaceName, sizeof(font_info.FaceName) / sizeof(font_info.FaceName[0]), L"Consolas");
 			b = SetCurrentConsoleFontEx(_console, false, &font_info);
 			if (!b) {
 				throw olc_exception(L"SetCurrentConsoleFontEx");
 			}
 
 			// minimize window
-			SMALL_RECT minrect = { 0, 0, 1, 1 };
+			SMALL_RECT minrect = { (short)0, (short)0, (short)1, (short)1 };
 			b = SetConsoleWindowInfo(_console, true, &minrect);
 			if (!b) {
 				throw olc_exception(L"SetConsoleWindowInfo when minimize window");
