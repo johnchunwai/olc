@@ -131,6 +131,12 @@ namespace olc {
 				throw olc_exception(L"SetConsoleWindowInfo");
 			}
 
+			// set console mode to allow mouse input
+			b = SetConsoleMode(_stdin, ENABLE_EXTENDED_FLAGS | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT);
+			if (!b) {
+				throw olc_exception(L"SetConsoleMode");
+			}
+
 			// allocate memory for screen buffer
 			_screen_buf.resize(w * h, { 0,0 });
 
@@ -192,10 +198,12 @@ namespace olc {
 					if (_key_new_state[i] & keydown) {
 						_keys[i].pressed = !_keys[i].held;
 						_keys[i].held = true;
+						OutputDebugString(boost::str(boost::wformat(L"key %1% pressed\n") % i).c_str());
 					}
 					else {
 						_keys[i].released = true;
 						_keys[i].held = false;
+						OutputDebugString(boost::str(boost::wformat(L"key %1% released\n") % i).c_str());
 					}
 				}
 				_key_old_state[i] = _key_new_state[i];
@@ -213,6 +221,7 @@ namespace olc {
 				case FOCUS_EVENT:
 				{
 					_in_focus = inevents[i].Event.FocusEvent.bSetFocus;
+					OutputDebugString(boost::str(boost::wformat(L"In focus = %1%\n") % _in_focus).c_str());
 					break;
 				}
 				case MOUSE_EVENT:
@@ -230,6 +239,7 @@ namespace olc {
 					{
 						_mousex = mouseevent.dwMousePosition.X;
 						_mousey = mouseevent.dwMousePosition.Y;
+						OutputDebugString(boost::str(boost::wformat(L"mouse (%1%, %2%)\n") % _mousex % _mousey).c_str());
 						break;
 					}
 					default:
@@ -249,14 +259,16 @@ namespace olc {
 					if (_mouse_new_state[m]) {
 						_mouse[m].pressed = !_mouse[m].held;
 						_mouse[m].held = true;
+						OutputDebugString(boost::str(boost::wformat(L"mouse %1% pressed\n") % m).c_str());
 					}
 					else {
 						_mouse[m].released = true;
 						_mouse[m].held = false;
+						OutputDebugString(boost::str(boost::wformat(L"mouse %1% released\n") % m).c_str());
 					}
 				}
 
-				_mouse_old_state = _mouse_new_state;
+				_mouse_old_state[m] = _mouse_new_state[m];
 			}
 
 			//
