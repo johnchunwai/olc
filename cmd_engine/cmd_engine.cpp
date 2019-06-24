@@ -2,11 +2,25 @@
 #include <array>
 #include <stdexcept>
 #include <thread>
+#include <iostream>
+#include <boost/format.hpp>
 
 
 using namespace std;
 
 namespace olc {
+	//
+	// Utility functions
+	//
+	void pause()
+	{
+		cout << "Press enter to quit";
+		cin.ignore();
+	}
+
+	//
+	// cmd_engine class
+	//
 	std::atomic<bool> cmd_engine::_active{ false };
 	std::condition_variable cmd_engine::_gamethread_ended_cv;
 	std::mutex cmd_engine::_gamethread_mutex;
@@ -20,11 +34,31 @@ namespace olc {
 	void cmd_engine::close()
 	{
 		OutputDebugString(L"close()\n");
+		// TODO: sound clean up
+
 		if (_console != INVALID_HANDLE_VALUE) {
 			SetConsoleActiveScreenBuffer(_orig_console);
 			CloseHandle(_console);
 			_console = INVALID_HANDLE_VALUE;
 		}
+	}
+
+	bool cmd_engine::console_close_handler(DWORD ctrl_type)
+	{
+		// handles notifications from windows similar to windows app
+		// we're only interested in the event when user closes the console window
+		if (ctrl_type == CTRL_CLOSE_EVENT) {
+			OutputDebugString(L"console_close_handler() begin\n");
+			// init shutdown sequence
+			_active = false;
+
+			// wait for game thread to be exited (to a max of 15 sec)
+			unique_lock<mutex> lk(_gamethread_mutex);
+			_gamethread_ended_cv.wait(lk);
+			OutputDebugString(L"console_close_handler() end\n");
+		}
+		// return true marks the event as processed so events like Ctrl-C won't kill our game.
+		return true;
 	}
 
 	void cmd_engine::construct_console(int w, int h, int fontw, int fonth)
@@ -118,8 +152,47 @@ namespace olc {
 
 	void cmd_engine::gamethread()
 	{
-		while (_active) {
+		// init user resources
+		if (!on_user_init()) {
+			_active = false;
 		}
+
+
+		// TODO: sound
+
+		// init time
+		auto prev_time = chrono::system_clock::now();
+		auto curr_time = chrono::system_clock::now();
+
+		while (_active) {
+			//
+			// handle timing
+			//
+			curr_time = chrono::system_clock::now();
+			float elapsed = chrono::duration<float>(curr_time - prev_time).count();
+			prev_time = curr_time;
+
+			//
+			// TODO: handle input
+			//
+
+			//
+			// handle update
+			//
+			if (!on_user_update(elapsed)) {
+				_active = false;
+			}
+
+			//
+			// present screen buffer
+			//
+			auto title = boost::str(boost::wformat(L"OLC - Console Game Engine - %1% - FPS: %2$+3.2f") % _app_name % (1.0f / elapsed));
+			SetConsoleTitle(title.c_str());
+			WriteConsoleOutput(_console, _screen_buf.data(), { (short)_width, (short)_height }, { 0, 0 }, &_rect);
+		}
+
+		// clean up
+		on_user_destroy();
 		close();
 		// notify the gamethread ends
 		_gamethread_ended_cv.notify_all();
@@ -132,22 +205,5 @@ namespace olc {
 		wstring s(L"ERROR: ");
 		s.append(msg).append(L"\n\t").append(buf.data());
 		return s;
-	}
-	bool cmd_engine::console_close_handler(DWORD ctrl_type)
-	{
-		// handles notifications from windows similar to windows app
-		// we're only interested in the event when user closes the console window
-		if (ctrl_type == CTRL_CLOSE_EVENT) {
-			OutputDebugString(L"console_close_handler() begin\n");
-			// init shutdown sequence
-			_active = false;
-
-			// wait for game thread to be exited (to a max of 15 sec)
-			unique_lock<mutex> lk(_gamethread_mutex);
-			_gamethread_ended_cv.wait_for(lk, 15s);
-			OutputDebugString(L"console_close_handler() end\n");
-		}
-		// return true marks the event as processed so events like Ctrl-C won't kill our game.
-		return true;
 	}
 }

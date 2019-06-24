@@ -5,16 +5,39 @@
 using namespace std;
 using namespace olc;
 
-void pause()
+
+class test_engine : public cmd_engine
 {
-	cout << "Press enter to quit";
-	cin.ignore();
-}
+public:
+	explicit test_engine(std::wstring app_name) : cmd_engine() {
+		_app_name = app_name;
+	}
+
+protected:
+	// Inherited via cmd_engine
+	virtual bool on_user_init() override
+	{
+		return true;
+	}
+	virtual bool on_user_update(float elapsed) override
+	{
+		return true;
+	}
+	virtual bool on_user_destroy() override
+	{
+		static bool b = false;
+		if (!b) {
+			b = true;
+			return false;
+		}
+		return true;
+	}
+};
 
 int main()
 {
 	try {
-		cmd_engine game;
+		test_engine game(L"test engine"s);
 		game.construct_console(100, 100, 12, 12);
 		game.start();
 	}

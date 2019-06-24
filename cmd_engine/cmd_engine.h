@@ -14,9 +14,16 @@ Character Set -> Use Unicode. Thanks! - Javidx9
 #include <condition_variable>
 #include <mutex>
 
+using namespace std::string_literals;
 
 namespace olc
 {
+	//
+	// utility functions
+	//
+	void pause();
+
+
 	namespace color
 	{
 		enum enum_t
@@ -96,7 +103,6 @@ namespace olc
 	class cmd_engine
 	{
 	public:
-		//cmd_engine();
 		virtual ~cmd_engine();
 
 	public:
@@ -108,18 +114,23 @@ namespace olc
 
 	protected:
 		// must override
-		//virtual bool on_user_create() = 0;
-		//virtual bool on_user_update(float elapsed) = 0;
+		virtual bool on_user_init() = 0;
+		virtual bool on_user_update(float elapsed) = 0;
 
-		//// optional
-		//virtual bool on_user_destroy();
+		// optional
+		virtual bool on_user_destroy() { return true; }
 
 	private:
 		void gamethread();
 
 	private:
-		static std::wstring format_error(std::wstring_view msg);
+		std::wstring format_error(std::wstring_view msg);
+
+		// static as it's very hacky to pass in instance method to SetConsoleCtrlHandler
 		static bool console_close_handler(DWORD event);
+
+	protected:
+		std::wstring _app_name{ L"cmd engine"s };
 
 	private:
 		HANDLE _console = INVALID_HANDLE_VALUE;
@@ -130,7 +141,7 @@ namespace olc
 		SMALL_RECT _rect;
 		std::vector<CHAR_INFO> _screen_buf;
 
-		// static because of the OnDestroy call windows may make
+		// static as will be used by static console_close_handler
 		static std::atomic<bool> _active;
 		static std::condition_variable _gamethread_ended_cv;
 		static std::mutex _gamethread_mutex;
