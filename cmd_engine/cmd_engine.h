@@ -24,7 +24,11 @@ namespace olc
 	//
 	void pause();
 
-	namespace color
+	//
+	// Calculated by the basic FOREGROUD_XXX, BACKGROUND_XXX flags defined in windows.h that includes only red, green, blue, intensity (gray) colors.
+	// The followings are calculated by mixing those basic colors.
+	//
+	namespace color_t
 	{
 		enum enum_t
 		{
@@ -64,9 +68,14 @@ namespace olc
 		};
 	}
 
+	//
+	// Unicode characters test display blocks in different "shade".
+	// Check https://www.fileformat.info/info/unicode/char/<character-code>/browsertest.htm
+	// by replace <character-code> with, say, 2592, to see what it looks like.
+	//
 	namespace pixel_type
 	{
-		enum pixel_type_t
+		enum enum_t
 		{
 			solid = 0x2588,
 			threequarters = 0x2593,
@@ -75,6 +84,15 @@ namespace olc
 		};
 	}
 
+	struct keystate {
+		bool pressed;
+		bool released;
+		bool held;
+	};
+
+	//
+	// Custom exception class to support unicode msg. Implementation mostly copied from std::runtime_error
+	//
 	class olc_exception : public std::exception { // base of all runtime-error exceptions
 	public:
 		using _Mybase = exception;
@@ -99,12 +117,6 @@ namespace olc
 		std::wstring _msg;
 	};
 
-	struct keystate {
-		bool pressed;
-		bool released;
-		bool held;
-	};
-
 	class cmd_engine
 	{
 	public:
@@ -114,19 +126,32 @@ namespace olc
 	public:
 		virtual ~cmd_engine();
 
-	public:
 		void construct_console(int w, int h, int fontw, int fonth);
 		void start();
 		virtual void close();
 
-		keystate get_key(int key_id) { return _keys[key_id]; }
-		keystate get_mouse(int button_id) { return _mouse[button_id]; }
-		int get_mouse_x() { return _mousex; }
-		int get_mouse_y() { return _mousey; }
+		int width() const { return _width; }
+		int height() const { return _height; }
 
-		bool is_focused() { return _in_focus; }
+		keystate get_key(int key_id) const { return _keys[key_id]; }
+		keystate get_mouse(int button_id) const { return _mouse[button_id]; }
+		int get_mouse_x() const { return _mousex; }
+		int get_mouse_y() const { return _mousey; }
 
-	protected:
+		bool is_focused() const { return _in_focus; }
+
+		//
+		// draw methods
+		//
+		void draw(int x, int y, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
+		void draw_no_bound_check(int x, int y, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
+		// x2, y2, is inclusive
+		void fill(int x1, int y1, int x2, int y2, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
+		void draw_string(int x, int y, const std::wstring& s, short color = color_t::fg_white);
+		void draw_string_alpha(int x, int y, const std::wstring& s, short color = color_t::fg_white);
+		// x, y are inclusive
+		void draw_line(int x1, int y1, int x2, int y2, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
+
 		// must override
 		virtual bool on_user_init() = 0;
 		virtual bool on_user_update(float elapsed) = 0;
@@ -135,10 +160,18 @@ namespace olc
 		virtual bool on_user_destroy() { return true; }
 
 	private:
+		// Main game thread
 		void gamethread();
 
 	private:
-		std::wstring format_error(std::wstring_view msg);
+		bool out_of_bound(int x, int y) const { return (x < 0 || x >= _width || y < 0 || y >= _height); }
+		int screen_index(int x, int y) const { return y * _width + x; }
+		void clip(int &x, int &y) {
+			x = std::clamp(x, 0, _width - 1);
+			y = std::clamp(y, 0, _height - 1);
+		}
+
+		std::wstring format_error(std::wstring_view msg) const;
 
 		// static as it's very hacky to pass in instance method to SetConsoleCtrlHandler
 		static bool console_close_handler(DWORD event);

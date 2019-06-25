@@ -21,11 +21,22 @@ protected:
 	}
 	virtual bool on_user_update(float elapsed) override
 	{
+		draw(4, 2);
+		fill(6, 5, 40, 30, pixel_type::half, color_t::fg_cyan | color_t::bg_dark_magenta);
+		fill(30, 43, 60, 200, pixel_type::half, color_t::fg_cyan | color_t::bg_dark_magenta);
+		draw_string(3, 40, L"What is going on?"s);
+		draw_string_alpha(4, 41, L"What is going on alpha?"s);
+		draw_string(50, 42, L"What is going on?0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"s);
+		draw_line(0, 0, width(), height());
+		draw_line(100, 30, 0, 60);
+		draw_line(60, 5, 40, 95);
+		draw_line(40, 5, 60, 95);
+
 		return true;
 	}
 	virtual bool on_user_destroy() override
 	{
-		this_thread::sleep_for(2s);
+		this_thread::sleep_for(1s);
 		return true;
 	}
 };

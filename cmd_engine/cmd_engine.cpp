@@ -293,7 +293,117 @@ namespace olc {
 		_gamethread_ended_cv.notify_all();
 	}
 
-	wstring cmd_engine::format_error(wstring_view msg)
+	//
+	// Draw methods
+	//
+	void cmd_engine::draw(int x, int y, wchar_t c, short color)
+	{
+		if (out_of_bound(x, y)) {
+			return;
+		}
+		draw_no_bound_check(x, y, c, color);
+	}
+
+	void cmd_engine::draw_no_bound_check(int x, int y, wchar_t c, short color)
+	{
+		_screen_buf[screen_index(x, y)].Char.UnicodeChar = c;
+		_screen_buf[screen_index(x, y)].Attributes = color;
+	}
+
+	// x2, y2, is inclusive
+	void cmd_engine::fill(int x1, int y1, int x2, int y2, wchar_t c, short color)
+	{
+		clip(x1, y1);
+		clip(x2, y2);
+		for (auto x = x1; x <= x2; ++x) {
+			for (auto y = y1; y < y2; ++y) {
+				draw_no_bound_check(x, y, c, color);
+			}
+		}
+	}
+
+	void cmd_engine::draw_string(int x, int y, const std::wstring& s, short color)
+	{
+		if (out_of_bound(x, y)) {
+			return;
+		}
+		if (out_of_bound(x + s.length(), y)) {
+			return;
+		}
+		for (auto i = 0; i < s.length(); ++i) {
+			draw_no_bound_check(x + i, y, s[i]);
+		}
+	}
+
+	void cmd_engine::draw_string_alpha(int x, int y, const std::wstring& s, short color)
+	{
+		if (out_of_bound(x, y)) {
+			return;
+		}
+		if (out_of_bound(x + s.length(), y)) {
+			return;
+		}
+		for (auto i = 0; i < s.length(); ++i) {
+			auto c = s[i];
+			if (!iswblank(c)) {
+				draw_no_bound_check(x + i, y, c);
+			}
+		}
+	}
+
+	// x, y are inclusive
+	// https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm for integer arithmetic
+	void cmd_engine::draw_line(int x1, int y1, int x2, int y2, wchar_t c, short color)
+	{
+		int x, y, dx, dy, dx_abs, dy_abs, Dx, Dy, xe, ye;
+		dx = x2 - x1;
+		dy = y2 - y1;
+		dx_abs = abs(dx);
+		dy_abs = abs(dy);
+		Dx = 2 * dy_abs - dx_abs;
+		Dy = 2 * dx_abs - dy_abs;
+		if (dy_abs <= dx_abs) {
+			// horizontal-ish line
+			if (dx >= 0) {
+				x = x1; y = y1; xe = x2;
+			}
+			else {
+				x = x2; y = y2; xe = x1;
+			}
+			draw(x, y, c, color);
+			for (x = x + 1; x <= xe; ++x) {
+				if (Dx >= 0) {
+					// y has gone from middle of a pixel to the edge of the next one
+					y += (dx < 0 && dy < 0 || dx > 0 && dy > 0) ? 1 : -1;
+					Dx -= 2 * dx_abs;
+				}
+				Dx += 2 * dy_abs;
+				draw(x, y, c, color);
+			}
+		}
+		else
+		{
+			// verical-ish line
+			if (dy >= 0) {
+				x = x1; y = y1; ye = y2;
+			}
+			else {
+				x = x2; y = y2; ye = y1;
+			}
+			draw(x, y, c, color);
+			for (y = y + 1; y <= ye; ++y) {
+				if (Dy >= 0) {
+					// x has gone from middle of a pixel to the edge of the next one
+					x += (dx < 0 && dy < 0 || dx > 0 && dy > 0) ? 1 : -1;
+					Dy -= 2 * dy_abs;
+				}
+				Dy += 2 * dx_abs;
+				draw(x, y, c, color);
+			}
+		}
+	}
+
+	wstring cmd_engine::format_error(wstring_view msg) const
 	{
 		array<wchar_t, 256> buf;
 		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf.data(), static_cast<DWORD>(buf.size()), nullptr);
