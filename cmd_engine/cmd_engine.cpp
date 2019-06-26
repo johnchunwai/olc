@@ -4,6 +4,7 @@
 #include <thread>
 #include <iostream>
 #include <boost/format.hpp>
+#include <cstdio>
 
 
 using namespace std;
@@ -17,6 +18,123 @@ namespace olc {
 		cout << "Press enter to quit";
 		cin.ignore();
 	}
+
+	//
+	// sprite class
+	//
+	sprite::sprite(int w, int h)
+	{
+		create(w, h);
+	}
+
+	sprite::sprite(const std::wstring& file)
+	{
+		if (!load(file)) {
+			create(8, 8);
+		}
+	}
+
+	void sprite::create(int w, int h)
+	{
+		_width = w;
+		_height = h;
+		_glyphs.resize(w * h, L' ');
+		_colors.resize(w * h, color_t::fg_black);
+	}
+
+	bool sprite::load(const std::wstring& file)
+	{
+		_width = 0;
+		_height = 0;
+		_glyphs.clear();
+		_colors.clear();
+
+		FILE* f{ nullptr };
+		_wfopen_s(&f, file.c_str(), L"rb");
+		if (!f) {
+			return false;
+		}
+
+		fread(&_width, sizeof(_width), 1, f);
+		fread(&_height, sizeof(_height), 1, f);
+		create(_width, _height);
+		fread(_glyphs.data(), sizeof(wchar_t), _width * _height, f);
+		fread(_colors.data(), sizeof(color_t::enum_t), _width * _height, f);
+
+		fclose(f);
+		return true;
+	}
+
+	bool sprite::save(const std::wstring& file) const
+	{
+		FILE* f{ nullptr };
+		_wfopen_s(&f, file.c_str(), L"wb");
+		if (!f) {
+			return false;
+		}
+
+		fwrite(&_width, sizeof(_width), 1, f);
+		fwrite(&_height, sizeof(_height), 1, f);
+		fwrite(_glyphs.data(), sizeof(wchar_t), _width * _height, f);
+		fwrite(_colors.data(), sizeof(color_t::enum_t), _width * _height, f);
+
+		fclose(f);
+		return true;
+	}
+
+	void sprite::set_glyph(int x, int y, wchar_t c)
+	{
+		if (!out_of_bound(x, y)) {
+			_glyphs[y * _width + x] = c;
+		}
+	}
+
+	void sprite::set_color(int x, int y, short c)
+	{
+		if (!out_of_bound(x, y)) {
+			_colors[y * _width + x] = c;
+		}
+	}
+
+	wchar_t sprite::get_glyph(int x, int y) const
+	{
+		if (!out_of_bound(x, y)) {
+			return _glyphs[y * _width + x];
+		}
+		else {
+			return L' ';
+		}
+	}
+
+	short sprite::get_color(int x, int y) const
+	{
+		if (!out_of_bound(x, y)) {
+			return _colors[y * _width + x];
+		}
+		else {
+			return color_t::fg_black;
+		}
+	}
+
+	wchar_t sprite::sample_glyph(float x, float y) const
+	{
+		int sx = static_cast<int>(x * _width);
+		int sy = static_cast<int>(y * _height);
+		return get_glyph(sx, sy);
+	}
+
+	short sprite::sample_color(float x, float y) const
+	{
+		int sx = static_cast<int>(x * _width);
+		int sy = static_cast<int>(y * _height);
+		return get_color(sx, sy);
+	}
+
+	bool sprite::out_of_bound(int x, int y) const
+	{
+		return x < 0 || x >= _width || y < 0 || y >= _height;
+	}
+
 
 	//
 	// cmd_engine class
@@ -198,12 +316,12 @@ namespace olc {
 					if (_key_new_state[i] & keydown) {
 						_keys[i].pressed = !_keys[i].held;
 						_keys[i].held = true;
-						OutputDebugString(boost::str(boost::wformat(L"key %1% pressed\n") % i).c_str());
+						//OutputDebugString(boost::str(boost::wformat(L"key %1% pressed\n") % i).c_str());
 					}
 					else {
 						_keys[i].released = true;
 						_keys[i].held = false;
-						OutputDebugString(boost::str(boost::wformat(L"key %1% released\n") % i).c_str());
+						//OutputDebugString(boost::str(boost::wformat(L"key %1% released\n") % i).c_str());
 					}
 				}
 				_key_old_state[i] = _key_new_state[i];
@@ -239,7 +357,7 @@ namespace olc {
 					{
 						_mousex = mouseevent.dwMousePosition.X;
 						_mousey = mouseevent.dwMousePosition.Y;
-						OutputDebugString(boost::str(boost::wformat(L"mouse (%1%, %2%)\n") % _mousex % _mousey).c_str());
+						//OutputDebugString(boost::str(boost::wformat(L"mouse (%1%, %2%)\n") % _mousex % _mousey).c_str());
 						break;
 					}
 					default:
@@ -259,12 +377,12 @@ namespace olc {
 					if (_mouse_new_state[m]) {
 						_mouse[m].pressed = !_mouse[m].held;
 						_mouse[m].held = true;
-						OutputDebugString(boost::str(boost::wformat(L"mouse %1% pressed\n") % m).c_str());
+						//OutputDebugString(boost::str(boost::wformat(L"mouse %1% pressed\n") % m).c_str());
 					}
 					else {
 						_mouse[m].released = true;
 						_mouse[m].held = false;
-						OutputDebugString(boost::str(boost::wformat(L"mouse %1% released\n") % m).c_str());
+						//OutputDebugString(boost::str(boost::wformat(L"mouse %1% released\n") % m).c_str());
 					}
 				}
 
@@ -465,6 +583,44 @@ namespace olc {
 			}
 			else {
 				d += 4 * (x++ - y--) + 10;
+			}
+		}
+	}
+
+	void cmd_engine::draw_sprite(int x, int y, const sprite& sprite)
+	{
+		for (int i = 0; i < sprite.width(); ++i) {
+			if (x + i >= _width) {
+				break;
+			}
+			for (int j = 0; j < sprite.height(); ++j) {
+				if (y + j >= _height) {
+					break;
+				}
+				wchar_t glyph = sprite.get_glyph(i, j);
+				if (glyph != L' ') {
+					draw(x + i, y + j, glyph, sprite.get_color(i, j));
+				}
+			}
+		}
+	}
+
+	void cmd_engine::draw_partial_sprite(int x, int y, const sprite& sprite, int sx, int sy, int w, int h)
+	{
+		assert("assert: sprite.width() > sx + w" && sprite.width() > sx + w);
+		assert("assert: (sprite.height() > sy + h" && sprite.height() > sy + h);
+		for (int i = 0; i < w; ++i) {
+			if (x + i >= _width) {
+				break;
+			}
+			for (int j = 0; j < h; ++j) {
+				if (y + j >= _height) {
+					break;
+				}
+				wchar_t glyph = sprite.get_glyph(sx + i, sy + j);
+				if (glyph != L' ') {
+					draw(x + i, y + j, glyph, sprite.get_color(sx + i, sy + j));
+				}
 			}
 		}
 	}

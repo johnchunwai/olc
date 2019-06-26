@@ -30,7 +30,7 @@ namespace olc
 	//
 	namespace color_t
 	{
-		enum enum_t
+		enum enum_t : short
 		{
 			fg_black = 0x0000,
 			fg_dark_blue = 0x0001,
@@ -117,6 +117,42 @@ namespace olc
 		std::wstring _msg;
 	};
 
+	class sprite
+	{
+	public:
+		sprite() = delete;
+		sprite(int w, int h);
+		sprite(const std::wstring &file);
+
+	private:
+		void create(int w, int h);
+
+	public:
+		int width() const { return _width; }
+		int height() const { return _height; }
+
+		bool load(const std::wstring& file);
+		bool save(const std::wstring& file) const;
+
+		void set_glyph(int x, int y, wchar_t c);
+		void set_color(int x, int y, short c);
+
+		wchar_t get_glyph(int x, int y) const;
+		short get_color(int x, int y) const;
+
+		wchar_t sample_glyph(float x, float y) const;
+		short sample_color(float x, float y) const;
+
+	private:
+		bool out_of_bound(int x, int y) const;
+
+	private:
+		int _width;
+		int _height;
+		std::wstring _glyphs;
+		std::vector<short> _colors;
+	};
+
 	class cmd_engine
 	{
 	public:
@@ -154,6 +190,8 @@ namespace olc
 		void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
 		void draw_circle(int xc, int yc, int r, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
 		void fill_circle(int xc, int yc, int r, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
+		void draw_sprite(int x, int y, const sprite& sprite);
+		void draw_partial_sprite(int x, int y, const sprite& sprite, int sx, int sy, int w, int h);
 
 		// must override
 		virtual bool on_user_init() = 0;

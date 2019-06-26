@@ -34,6 +34,17 @@ protected:
 		draw_triangle(50, 20, 40, 60, 58, 23);
 		draw_circle(90, 100, 55, pixel_type::solid, color_t::bg_dark_red);
 		fill_circle(90, 100, 52, pixel_type::solid, color_t::bg_dark_yellow);
+		sprite s1(9, 15);
+		for (int i = 0; i < s1.width(); ++i) {
+			s1.set_color(i, 7, color_t::fg_dark_green);
+			s1.set_glyph(i, 7, pixel_type::threequarters);
+		}
+		for (int j = 0; j < s1.height(); ++j) {
+			s1.set_color(4, j, color_t::fg_dark_yellow);
+			s1.set_glyph(4, j, pixel_type::solid);
+		}
+		draw_sprite(10, 70, s1);
+		draw_partial_sprite(146, 140, s1, 3, 6, 5, 8);
 
 		return true;
 	}
