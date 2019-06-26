@@ -352,6 +352,7 @@ namespace olc {
 	}
 
 	// x, y are inclusive
+	// Bresenham's line algorithm
 	// https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm for integer arithmetic
 	void cmd_engine::draw_line(int x1, int y1, int x2, int y2, wchar_t c, short color)
 	{
@@ -399,6 +400,71 @@ namespace olc {
 				}
 				Dy += 2 * dx_abs;
 				draw(x, y, c, color);
+			}
+		}
+	}
+
+	void cmd_engine::draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, wchar_t c, short color)
+	{
+		draw_line(x1, y1, x2, y2, c, color);
+		draw_line(x1, y1, x3, y3, c, color);
+		draw_line(x2, y2, x3, y3, c, color);
+	}
+
+	// Bresenham’s circle drawing algorithm
+	// https://www.geeksforgeeks.org/bresenhams-circle-drawing-algorithm/
+	void cmd_engine::draw_circle(int xc, int yc, int r, wchar_t c, short color)
+	{
+		if (r <= 0) {
+			return;
+		}
+		int x = 0, y = r;
+		int d = 3 - 2 * r;
+		// loop through 1/8 of a circle
+		while (y >= x) {
+			draw(xc + x, yc + y, c, color);
+			draw(xc + x, yc - y, c, color);
+			draw(xc - x, yc + y, c, color);
+			draw(xc - x, yc - y, c, color);
+			draw(xc + y, yc + x, c, color);
+			draw(xc + y, yc - x, c, color);
+			draw(xc - y, yc + x, c, color);
+			draw(xc - y, yc - x, c, color);
+			if (d < 0) {
+				d += 4 * x++ + 6;
+			}
+			else {
+				d += 4 * (x++ - y--) + 10;
+			}
+		}
+	}
+
+	void cmd_engine::fill_circle(int xc, int yc, int r, wchar_t c, short color)
+	{
+		if (r <= 0) {
+			return;
+		}
+		int x = 0, y = r;
+		int d = 3 - 2 * r;
+
+		auto draw_scanline = [this, c, color](int sx, int sy, int ex) {
+			for (int x = sx; x <= ex; ++x) {
+				draw(x, sy, c, color);
+			}
+		};
+
+		// loop through 1/8 of a circle
+		while (y >= x) {
+			// modified to draw scan lines instead
+			draw_scanline(xc - x, yc + y, xc + x);
+			draw_scanline(xc - x, yc - y, xc + x);
+			draw_scanline(xc - y, yc + x, xc + y);
+			draw_scanline(xc - y, yc - x, xc + y);
+			if (d < 0) {
+				d += 4 * x++ + 6;
+			}
+			else {
+				d += 4 * (x++ - y--) + 10;
 			}
 		}
 	}

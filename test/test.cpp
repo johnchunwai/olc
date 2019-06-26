@@ -31,6 +31,9 @@ protected:
 		draw_line(100, 30, 0, 60);
 		draw_line(60, 5, 40, 95);
 		draw_line(40, 5, 60, 95);
+		draw_triangle(50, 20, 40, 60, 58, 23);
+		draw_circle(90, 100, 55, pixel_type::solid, color_t::bg_dark_red);
+		fill_circle(90, 100, 52, pixel_type::solid, color_t::bg_dark_yellow);
 
 		return true;
 	}
@@ -45,7 +48,7 @@ int main()
 {
 	try {
 		test_engine game(L"test engine"s);
-		game.construct_console(100, 100, 12, 12);
+		game.construct_console(150, 150, 6, 6);
 		game.start();
 	}
 	catch (olc_exception& e) {
