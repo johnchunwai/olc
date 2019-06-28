@@ -45,6 +45,8 @@ protected:
 		}
 		draw_sprite(10, 70, s1);
 		draw_partial_sprite(146, 140, s1, 3, 6, 5, 8);
+        vector<pair<float, float>> poly{ {5.f, 10.f}, {-5.f, 10.f}, {-5.f, -10.f}, {5.f, -10.f} };
+        draw_wire_polygon(poly, 10, 10, 0.43, 0.5, pixel_type::solid, color_t::bg_dark_red);
 
 		return true;
 	}

@@ -605,6 +605,7 @@ namespace olc {
 		}
 	}
 
+	// Draws part of the sprite
 	void cmd_engine::draw_partial_sprite(int x, int y, const sprite& sprite, int sx, int sy, int w, int h)
 	{
 		assert("assert: sprite.width() > sx + w" && sprite.width() > sx + w);
@@ -625,7 +626,37 @@ namespace olc {
 		}
 	}
 
-	wstring cmd_engine::format_error(wstring_view msg) const
+    // r is rotation of the model, rotation is base on (0,0) of the model; s is scale
+    void cmd_engine::draw_wire_polygon(const std::vector<std::pair<float, float>>& model, float x, float y, float r, float s,
+        wchar_t c, short color)
+    {
+        // rotate -> scale -> translate -> draw
+        auto transformed{ model };
+        for (auto &vert : transformed) {
+            // rotate
+            // note the rotation equation is diff from typical math book as our y-axis is inverted
+            auto xr = vert.first * cosf(r) - vert.second * sinf(r);
+            auto yr = -vert.first * sinf(r) - vert.second * cosf(r);
+            vert.first = xr;
+            vert.second = yr;
+            // scale
+            vert.first *= s;
+            vert.second *= s;
+            // translate
+            vert.first += x;
+            vert.second += y;
+        }
+
+        // draw closed polygon
+        size_t nverts = model.size();
+        for (size_t i = 0; i < nverts; ++i) {
+            auto j = i + 1;
+            draw_line((int)transformed[i % nverts].first, (int)transformed[i % nverts].second,
+                (int)transformed[j % nverts].first, (int)transformed[j % nverts].second, c, color);
+        }
+    }
+    
+    wstring cmd_engine::format_error(wstring_view msg) const
 	{
 		array<wchar_t, 256> buf;
 		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf.data(), static_cast<DWORD>(buf.size()), nullptr);

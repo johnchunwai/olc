@@ -191,7 +191,11 @@ namespace olc
 		void draw_circle(int xc, int yc, int r, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
 		void fill_circle(int xc, int yc, int r, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
 		void draw_sprite(int x, int y, const sprite& sprite);
+		// Draws part of the sprite
 		void draw_partial_sprite(int x, int y, const sprite& sprite, int sx, int sy, int w, int h);
+        // r is rotation of the model, rotation is base on (0,0) of the model; s is scale
+        void draw_wire_polygon(const std::vector<std::pair<float, float>>& model, float x, float y, float r = 0.0f, float s = 1.0f,
+            wchar_t c = pixel_type::solid, short color = color_t::fg_white);
 
 		// must override
 		virtual bool on_user_init() = 0;
