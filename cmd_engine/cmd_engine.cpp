@@ -42,29 +42,6 @@ namespace olc {
 		_colors.resize(w * h, color_t::fg_black);
 	}
 
-	bool sprite::load(const std::wstring& file)
-	{
-		_width = 0;
-		_height = 0;
-		_glyphs.clear();
-		_colors.clear();
-
-		FILE* f{ nullptr };
-		_wfopen_s(&f, file.c_str(), L"rb");
-		if (!f) {
-			return false;
-		}
-
-		fread(&_width, sizeof(_width), 1, f);
-		fread(&_height, sizeof(_height), 1, f);
-		create(_width, _height);
-		fread(_glyphs.data(), sizeof(wchar_t), _width * _height, f);
-		fread(_colors.data(), sizeof(color_t::enum_t), _width * _height, f);
-
-		fclose(f);
-		return true;
-	}
-
 	bool sprite::save(const std::wstring& file) const
 	{
 		FILE* f{ nullptr };
@@ -81,6 +58,60 @@ namespace olc {
 		fclose(f);
 		return true;
 	}
+
+    bool sprite::load(const std::wstring& file)
+    {
+        _width = 0;
+        _height = 0;
+        _glyphs.clear();
+        _colors.clear();
+
+        FILE* f{ nullptr };
+        _wfopen_s(&f, file.c_str(), L"rb");
+        if (!f) {
+            return false;
+        }
+
+        fread(&_width, sizeof(_width), 1, f);
+        fread(&_height, sizeof(_height), 1, f);
+        create(_width, _height);
+        fread(_glyphs.data(), sizeof(wchar_t), _width * _height, f);
+        fread(_colors.data(), sizeof(color_t::enum_t), _width * _height, f);
+
+        fclose(f);
+        return true;
+    }
+
+    bool sprite::load_from_resource(uint32_t id)
+    {
+        // RT_RCDATA is resource type raw cdata.
+        HRSRC resinfo = FindResource(nullptr, MAKEINTRESOURCE(id), RT_RCDATA);
+        if (!resinfo) {
+            return false;
+        }
+        HGLOBAL res = LoadResource(nullptr, resinfo);
+        if (!res) {
+            return false;
+        }
+        char *res_data = (char*)LockResource(res);
+        DWORD res_size = SizeofResource(nullptr, resinfo);
+
+        _width = 0;
+        _height = 0;
+        _glyphs.clear();
+        _colors.clear();
+
+        int *res_dimension = reinterpret_cast<int*>(res_data);
+        std::copy_n(res_dimension, 1, &_width);
+        std::copy_n(res_dimension + 1, 1, &_height);
+        create(_width, _height);
+        wchar_t *res_glyphs = reinterpret_cast<wchar_t*>(res_data + sizeof(int) * 2);
+        std::copy_n(res_glyphs, _width * _height, _glyphs.begin());
+        short *res_color = reinterpret_cast<short*>(res_glyphs + _width * _height);
+        std::copy_n(res_color, _width * _height, _colors.begin());
+
+        return true;
+    }
 
 	void sprite::set_glyph(int x, int y, wchar_t c)
 	{

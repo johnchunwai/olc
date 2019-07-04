@@ -131,8 +131,9 @@ namespace olc
 		int width() const { return _width; }
 		int height() const { return _height; }
 
-		bool load(const std::wstring& file);
 		bool save(const std::wstring& file) const;
+        bool load(const std::wstring& file);
+        bool load_from_resource(uint32_t id);
 
 		void set_glyph(int x, int y, wchar_t c);
 		void set_color(int x, int y, short c);
