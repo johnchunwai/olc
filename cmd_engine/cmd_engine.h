@@ -189,6 +189,7 @@ namespace olc
 		// x, y are inclusive
 		void draw_line(int x1, int y1, int x2, int y2, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
 		void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
+        // TODO: fill_triangle
 		void draw_circle(int xc, int yc, int r, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
 		void fill_circle(int xc, int yc, int r, wchar_t c = pixel_type::solid, short color = color_t::fg_white);
 		void draw_sprite(int x, int y, const sprite& sprite);
