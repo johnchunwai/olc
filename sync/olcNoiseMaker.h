@@ -1,7 +1,6 @@
 /*
     OneLoneCoder.com - Simple Audio Noisy Thing
     "Allows you to simply listen to that waveform!" - @Javidx9
-
     License
     ~~~~~~~
     Copyright (C) 2018  Javidx9
@@ -12,10 +11,8 @@
     https://www.github.com/onelonecoder
     https://www.onelonecoder.com
     https://www.youtube.com/javidx9
-
     GNU GPLv3
     https://github.com/OneLoneCoder/videos/blob/master/LICENSE
-
     From Javidx9 :)
     ~~~~~~~~~~~~~~~
     Hello! Ultimately I don't care what you use this for. It's intended to be
@@ -26,28 +23,20 @@
     github repo. This means you must attribute me if you use it. You can view this
     license here: https://github.com/OneLoneCoder/videos/blob/master/LICENSE
     Cheers!
-
     Author
     ~~~~~~
-
     Twitter: @javidx9
     Blog: www.onelonecoder.com
-
     Versions
     ~~~~~~~~
-
     1.0 - 14/01/17
     - Controls audio output hardware behind the scenes so you can just focus
       on creating and listening to interesting waveforms.
     - Currently MS Windows only
-
     Documentation
     ~~~~~~~~~~~~~
-
     See video: https://youtu.be/tgamhuQnOkM
-
     This will improve as it grows!
-
 */
 
 
@@ -66,6 +55,10 @@
 #include <Windows.h>
 
 using namespace std;
+
+#ifndef ftype
+using ftype = double;
+#endif
 
 const double PI = 2.0 * acos(0.0);
 
@@ -157,12 +150,12 @@ public:
     }
 
     // Override to process current sample
-    virtual double UserProcess(double dTime)
+    virtual ftype UserProcess(int nChannel, ftype dTime)
     {
         return 0.0;
     }
 
-    double GetTime()
+    ftype GetTime()
     {
         return m_dGlobalTime;
     }
@@ -181,12 +174,12 @@ public:
         return sDevices;
     }
 
-    void SetUserFunction(double(*func)(double))
+    void SetUserFunction(ftype(*func)(int, ftype))
     {
         m_userFunction = func;
     }
 
-    double clip(double dSample, double dMax)
+    ftype clip(ftype dSample, ftype dMax)
     {
         if (dSample >= 0.0)
             return fmin(dSample, dMax);
@@ -196,7 +189,7 @@ public:
 
 
 private:
-    double(*m_userFunction)(double);
+    ftype(*m_userFunction)(int, ftype);
 
     unsigned int m_nSampleRate;
     unsigned int m_nChannels;
@@ -214,7 +207,7 @@ private:
     condition_variable m_cvBlockNotZero;
     mutex m_muxBlockNotZero;
 
-    atomic<double> m_dGlobalTime;
+    atomic<ftype> m_dGlobalTime{0.0};
 
     // Handler for soundcard request for more data
     void waveOutProc(HWAVEOUT hWaveOut, UINT uMsg, DWORD_PTR dwParam1, DWORD_PTR dwParam2)
@@ -239,18 +232,19 @@ private:
     void MainThread()
     {
         m_dGlobalTime = 0.0;
-        double dTimeStep = 1.0 / (double)m_nSampleRate;
+        ftype dTimeStep = 1.0 / (ftype)m_nSampleRate;
 
         // Goofy hack to get maximum integer for a type at run-time
         T nMaxSample = (T)pow(2, (sizeof(T) * 8) - 1) - 1;
-        double dMaxSample = (double)nMaxSample;
+        ftype dMaxSample = (ftype)nMaxSample;
         T nPreviousSample = 0;
 
         while (m_bReady) {
             // Wait for block to become available
             if (m_nBlockFree == 0) {
                 unique_lock<mutex> lm(m_muxBlockNotZero);
-                m_cvBlockNotZero.wait(lm);
+                while (m_nBlockFree == 0) // sometimes, Windows signals incorrectly
+                    m_cvBlockNotZero.wait(lm);
             }
 
             // Block is here, so use it
@@ -263,15 +257,18 @@ private:
             T nNewSample = 0;
             int nCurrentBlock = m_nBlockCurrent * m_nBlockSamples;
 
-            for (unsigned int n = 0; n < m_nBlockSamples; n++) {
+            for (unsigned int n = 0; n < m_nBlockSamples; n += m_nChannels) {
                 // User Process
-                if (m_userFunction == nullptr)
-                    nNewSample = (T)(clip(UserProcess(m_dGlobalTime), 1.0) * dMaxSample);
-                else
-                    nNewSample = (T)(clip(m_userFunction(m_dGlobalTime), 1.0) * dMaxSample);
+                for (unsigned int c = 0; c < m_nChannels; c++) {
+                    if (m_userFunction == nullptr)
+                        nNewSample = (T)(clip(UserProcess(c, m_dGlobalTime), 1.0) * dMaxSample);
+                    else
+                        nNewSample = (T)(clip(m_userFunction(c, m_dGlobalTime), 1.0) * dMaxSample);
 
-                m_pBlockMemory[nCurrentBlock + n] = nNewSample;
-                nPreviousSample = nNewSample;
+                    m_pBlockMemory[nCurrentBlock + n + c] = nNewSample;
+                    nPreviousSample = nNewSample;
+                }
+
                 m_dGlobalTime = m_dGlobalTime + dTimeStep;
             }
 
