@@ -17,14 +17,16 @@ namespace synth
         return hertz * 2 * PI;
     }
 
+    struct instrument;
+
     // a basic note
     struct note
     {
-        int id = 0;             // position in scale, id 0 is the note with g_octave_base_freq (A3)
-        ftype on = 0.0;         // time when note is on
-        ftype off = 0.0;        // time when note is off
-        bool active = false;    // when false, this note will be removed from the vector to make sound
-        int channel = 0;        // each channel is handled by an instrument
+        int id = 0;                     // position in scale, id 0 is the note with g_octave_base_freq (A3)
+        ftype on = 0.0;                 // time when note is on
+        ftype off = 0.0;                // time when note is off
+        bool active = false;            // when false, this note will be removed from the vector to make sound
+        instrument* channel = nullptr;  // each channel is handled by an instrument
     };
 
     // scale to freq conversion
@@ -274,7 +276,7 @@ static auto init_channel_vec()
 vector<synth::note> g_note_list;
 mutex g_notes_mutex;
 vector<unique_ptr<synth::instrument>> g_channels{ init_channel_vec() };
-atomic<int> g_channel_id = 0;
+atomic<synth::instrument*> g_active_channel = g_channels[0].get();
 //shared_ptr<instrument> g_instrument = make_shared<harmonica>();
 
 template<typename V, typename Func>
@@ -295,8 +297,7 @@ ftype sound_func(int channel, ftype time)
     ftype mixed_sound = 0.0;
     scoped_lock lock(g_notes_mutex);
     for (auto& n : g_note_list) {
-        auto& instru = g_channels[n.channel];
-        auto [sound, note_finished] = instru->sound(time, n);
+        auto [sound, note_finished] = n.channel->sound(time, n);
         mixed_sound += sound;
         if (note_finished && n.off > n.on) {
             n.active = false;
@@ -335,7 +336,7 @@ int main()
     //constexpr string_view osc_keys{ "123456" };
     //constexpr string_view env_keys{ "90" };
     int curr_key = -1;
-    int curr_channel_key = g_channel_id;
+    int curr_channel_key = 0;
     //int curr_osc_key = -1;
     //int curr_env_key = -1;
     while (1) {
@@ -366,7 +367,7 @@ int main()
             if (GetAsyncKeyState((uint8_t)channel_keys[k]) & 0x8000) {
                 if (curr_channel_key != k) {
                     curr_channel_key = k;
-                    g_channel_id = k;
+                    g_active_channel = g_channels[k].get();
                 }
             }
         }
@@ -381,7 +382,8 @@ int main()
             if (key_state & 0x8000) {
                 if (found_note != g_note_list.end()) {
                     // key on and note exist
-                    if (found_note->off > found_note->on) {
+                    // use >= instead of > to avoid the case when off==on and it does nothing
+                    if (found_note->off >= found_note->on) {
                         // key was off but on again
                         found_note->on = now;
                     }
@@ -391,13 +393,14 @@ int main()
                 }
                 else {
                     // key on and note not exist, create
-                    g_note_list.push_back({ k, now, 0.0, true, g_channel_id });
+                    g_note_list.push_back({ k, now, 0.0, true, g_active_channel });
                 }
             }
             else {
                 if (found_note != g_note_list.end()) {
                     // key off and note exist
-                    if (found_note->on > found_note->off) {
+                    // use >= instead of > to avoid the case when off==on and it does nothing
+                    if (found_note->on >= found_note->off) {
                         // key was on, set to off
                         found_note->off = now;
                     }
