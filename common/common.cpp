@@ -78,10 +78,21 @@ namespace olc
 		}
 	}
 
-	void console_screen_buffer::display() const {
-		DWORD bytes_written;
-		WriteConsoleOutputCharacterW(_console, _screen.data(), dimension(), { 0, 0 }, &bytes_written);
-	}
+    void console_screen_buffer::display() const
+    {
+        DWORD bytes_written;
+        WriteConsoleOutputCharacterW(_console, _screen.data(), dimension(), { 0, 0 }, &bytes_written);
+    }
+
+    void console_screen_buffer::draw_string(int x, int y, std::wstring_view s)
+    {
+        std::copy_n(s.begin(), s.size(), &_screen.data()[y * _width + x]);
+    }
+
+    void console_screen_buffer::clear()
+    {
+        std::fill_n(_screen.data(), dimension(), L' ');
+    }
 
 	void pause()
 	{

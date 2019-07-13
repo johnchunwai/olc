@@ -22,6 +22,9 @@ namespace olc
 
 		std::wstring& screen() { return _screen; }
 
+        void draw_string(int x, int y, std::wstring_view s);
+        void clear();
+
 	private:
 		HANDLE _console;
 		HANDLE _stdout;

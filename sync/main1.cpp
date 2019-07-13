@@ -2,6 +2,8 @@
 #include <iostream>
 #include <algorithm>
 #include <chrono>
+#include "common.h"
+#include <boost/format.hpp>
 
 using namespace std;
 
@@ -39,7 +41,8 @@ namespace synth
     ftype scale(const int note_id)
     {
         // 1.0594630943592952645618252949463 == pow(2.0, 1.0 / 12.0)
-        return g_octave_base_freq * pow(1.0594630943592952645618252949463, note_id);
+        // g_octave_base_freq
+        return 8 * pow(1.0594630943592952645618252949463, note_id);
     }
 
     // oscillator type
@@ -185,9 +188,9 @@ namespace synth
             if (amp < g_epsilon) {
                 note_finished = true;
             }
-            auto sound = 1.0 * osc(time, scale(n.id + 12), osc_t::sine, 5.0, 0.001)
-                + 0.5 * osc(time, scale(n.id + 24), osc_t::sine)
-                + 0.25 * osc(time, scale(n.id + 36), osc_t::sine);
+            auto sound = 1.0 * osc(time - n.on, scale(n.id + 12), osc_t::sine, 5.0, 0.001)
+                + 0.5 * osc(time - n.on, scale(n.id + 24), osc_t::sine)
+                + 0.25 * osc(time - n.on, scale(n.id + 36), osc_t::sine);
             return { amp * sound * vol, note_finished };
         }
     };
@@ -345,7 +348,7 @@ namespace synth
             while (accum_time >= beat_time) {
                 accum_time -= beat_time;
 
-                for (auto ch : channel_vec) {
+                for (auto& ch : channel_vec) {
                     if (ch.beat_pattern[curr_beat] == L'X') {
                         //int id = 0;                     // position in scale, id 0 is the note with g_octave_base_freq (A3)
                         //ftype on = 0.0;                 // time when note is on
@@ -370,6 +373,9 @@ static auto init_instrument_vec()
     instru_vec.push_back(make_unique<synth::bell>());
     instru_vec.push_back(make_unique<synth::bell8>());
     instru_vec.push_back(make_unique<synth::harmonica>());
+    //instru_vec.push_back(make_unique<synth::drumkick>());
+    //instru_vec.push_back(make_unique<synth::drumsnare>());
+    //instru_vec.push_back(make_unique<synth::drumhihat>());
     return instru_vec;
 }
 
@@ -402,7 +408,7 @@ ftype sound_func(int channel, ftype time)
     for (auto& n : g_note_list) {
         auto [sound, note_finished] = n.instru->sound(time, n);
         mixed_sound += sound;
-        if (note_finished && n.off > n.on) {
+        if (note_finished) {
             n.active = false;
         }
     }
@@ -415,19 +421,10 @@ ftype sound_func(int channel, ftype time)
 
 int main()
 {
+    olc::console_screen_buffer screen(80, 30, 16);
+
     // get sound hardwares
     vector<wstring> devices = olcNoiseMaker<int16_t>::Enumerate();
-    for (const auto& d : devices) wcout << "Found sound device: " << d << endl;
-    wcout << "Using device: " << devices[0] << endl;
-
-    // Display a keyboard
-    wcout << endl <<
-        "|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |   | |   |" << endl <<
-        "|   | W |   |   | R | | T |   |   | U | | I | | O |   |   | [ | | ] |" << endl <<
-        "|   |___|   |   |___| |___|   |   |___| |___| |___|   |   |___| |___|" << endl <<
-        "|     |     |     |     |     |     |     |     |     |     |     | " << endl <<
-        "|  A  |  S  |  D  |  F  |  G  |  H  |  J  |  K  |  L  |  ;  |  '  | " << endl <<
-        "|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_" << endl << endl;
 
     // create sound machine
     // 16 bit sample
@@ -445,7 +442,7 @@ int main()
     ftype wall_time = 0.0;
 
     constexpr string_view keys{ "AWSDRFTGHUJIKOL\xba\xdb\xde\xdd" };
-    constexpr string_view instrument_keys{ "123" };
+    constexpr string_view instrument_keys{ "123" };// 456" };
     //constexpr string_view osc_keys{ "123456" };
     //constexpr string_view env_keys{ "90" };
     int curr_key = -1;
@@ -495,18 +492,21 @@ int main()
         int new_notes = seq.update(elapsed);
         if (new_notes > 0) {
             scoped_lock lock(g_notes_mutex);
-            for (auto n : seq.note_vec) {
+            for (auto& n : seq.note_vec) {
                 n.on = sound_time;
                 g_note_list.push_back(n);
             }
         }
 
+        auto key_to_note_id = [](int k) { return k + 64; };
+
         for (int k = 0; k < keys.size(); k++) {
             auto key_state = GetAsyncKeyState((uint8_t)keys[k]);
+            auto note_id = key_to_note_id(k);
 
             // handle key press and release
             scoped_lock lock(g_notes_mutex);
-            auto found_note = find_if(g_note_list.begin(), g_note_list.end(), [k](const synth::note& n) { return n.id == k; });
+            auto found_note = find_if(g_note_list.begin(), g_note_list.end(), [note_id](const synth::note& n) { return n.id == note_id && n.instru == (synth::instrument*)g_active_instrument; });
             if (key_state & 0x8000) {
                 if (found_note != g_note_list.end()) {
                     // key on and note exist
@@ -521,7 +521,7 @@ int main()
                 }
                 else {
                     // key on and note not exist, create
-                    g_note_list.emplace_back(k, sound_time, 0.0, true, g_active_instrument);
+                    g_note_list.emplace_back(note_id, sound_time, 0.0, true, g_active_instrument);
                 }
             }
             else {
@@ -562,5 +562,52 @@ int main()
         //        g_instrument->env.set_note_off(sound.GetTime());
         //    }
         //}
+
+        // visual stuff
+        screen.clear();
+        int y = 0;
+        for (const auto& d : devices) {
+            screen.draw_string(2, y++, L"Found sound device: "s + d);
+        }
+        screen.draw_string(2, y++, L"Using device: " + devices[0]);
+        y += 2;
+        auto seq_cursor_y = y;
+
+        // draw sequencer
+        screen.draw_string(2, y, L"SEQUENCER:"s);
+        for (int beat = 0; beat < seq.beats; ++beat) {
+            screen.draw_string(beat* seq.subbeats + 20, y, L"O");
+            for (int subbeat = 1; subbeat < seq.subbeats; ++subbeat) {
+                screen.draw_string(beat* seq.subbeats + subbeat + 20, y, L".");
+            }
+        }
+        ++y;
+
+        // draw sequences
+        for (auto& ch : seq.channel_vec) {
+            screen.draw_string(2, y, ch.instru->name);
+            screen.draw_string(20, y++, ch.beat_pattern);
+        }
+
+        // draw beat cursor
+        screen.draw_string(20 + seq.curr_beat, seq_cursor_y, L"|");
+
+        // draw keyboard
+        // Display a keyboard
+        screen.draw_string(2, y++, L"|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |   | |   |");
+        screen.draw_string(2, y++, L"|   | W |   |   | R | | T |   |   | U | | I | | O |   |   | [ | | ] |");
+        screen.draw_string(2, y++, L"|   |___|   |   |___| |___|   |   |___| |___| |___|   |   |___| |___|");
+        screen.draw_string(2, y++, L"|     |     |     |     |     |     |     |     |     |     |     | ");
+        screen.draw_string(2, y++, L"|  A  |  S  |  D  |  F  |  G  |  H  |  J  |  K  |  L  |  ;  |  '  | ");
+        screen.draw_string(2, y++, L"|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_");
+
+        // draw stats
+        ++y;
+        screen.draw_string(2, y++, L"Active instrument: "s + (*g_active_instrument).name);
+        auto stats = boost::str(boost::wformat(L"Notes: %1% Wall Time: %2% CPU Time: %3% Latency: %4%") % g_note_list.size() % wall_time % sound_time % (wall_time - sound_time));
+        screen.draw_string(2, y++, stats);
+
+        // display
+        screen.display();
     }
 }
