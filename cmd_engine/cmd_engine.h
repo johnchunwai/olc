@@ -200,7 +200,9 @@ namespace olc
             wchar_t c = pixel_type::solid, short color = color_t::fg_white);
 
 		// must override
+        // return false will quit the game
 		virtual bool on_user_init() = 0;
+        // return false will quit the game
 		virtual bool on_user_update(float elapsed) = 0;
 
 		// optional
