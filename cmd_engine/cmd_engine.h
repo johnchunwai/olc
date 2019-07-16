@@ -65,7 +65,24 @@ namespace olc
 			bg_magenta = 0x00d0,
 			bg_yellow = 0x00e0,
 			bg_white = 0x00f0,
-		};
+
+            black = 0x0000,
+            dark_blue = 0x0011,
+            dark_green = 0x0022,
+            dark_cyan = 0x0033,
+            dark_red = 0x0044,
+            dark_magenta = 0x0055,
+            dark_yellow = 0x0066,
+            grey = 0x0077, // thanks ms :-/
+            dark_grey = 0x0088,
+            blue = 0x0099,
+            green = 0x00aa,
+            cyan = 0x00bb,
+            red = 0x00cc,
+            magenta = 0x00dd,
+            yellow = 0x00ee,
+            white = 0x00ff,
+        };
 	}
 
 	//

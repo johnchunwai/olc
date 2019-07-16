@@ -186,7 +186,9 @@ namespace olc {
 		// TODO: sound clean up
 
 		if (_console != INVALID_HANDLE_VALUE) {
-			SetConsoleActiveScreenBuffer(_orig_console);
+            if (_orig_console != INVALID_HANDLE_VALUE) {
+                SetConsoleActiveScreenBuffer(_orig_console);
+            }
 			CloseHandle(_console);
 			_console = INVALID_HANDLE_VALUE;
 		}
