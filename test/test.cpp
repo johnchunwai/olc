@@ -62,7 +62,7 @@ int main()
 	try {
 		test_engine game(L"test engine"s);
 		game.construct_console(150, 150, 6, 6);
-		game.start();
+        game.start();
 	}
 	catch (olc_exception& e) {
 		wcerr << e.msg() << endl;
