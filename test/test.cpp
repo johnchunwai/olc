@@ -65,7 +65,7 @@ int main()
         game.start();
 	}
 	catch (olc_exception& e) {
-		wcerr << e.msg() << endl;
+		wcerr << e.msg().data() << endl;
 	}
 	cout << "game ended" << endl;
 	pause();
