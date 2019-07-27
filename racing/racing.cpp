@@ -38,6 +38,10 @@ namespace olc {
         float _track_dist_total = 0.0f;
 
     public:
+        racing() {
+            _app_name = L"Classic Racing";
+        }
+
         // Inherited via cmd_engine
         virtual bool on_user_init() override
         {
