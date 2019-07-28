@@ -32,13 +32,13 @@ namespace olc {
         float _car_curv_accum = 0.0f;
 
         float _lap_time = 0.0f;
-        list<float> _lap_time_hist{ list<float>(5, 0.0f) };
+        list<float> _lap_time_hist{};
 
         vector<track_section> _track{};
         float _track_dist_total = 0.0f;
 
     public:
-        racing() {
+        racing() : _lap_time_hist(5, 0.0f) {
             _app_name = L"Classic Racing";
         }
 
