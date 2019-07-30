@@ -75,8 +75,16 @@ namespace olc {
             if (get_key(VK_UP).held) {
                 _car_speed += 2.0f * elapsed;
             }
+            else if (get_key(VK_DOWN).held) {
+                _car_speed -= 2.0f * elapsed;
+            }
             else {
-                _car_speed -= 1.0f * elapsed;
+                if (_car_speed > 0.0f) {
+                    _car_speed = fmaxf(0.0f, _car_speed - 1.0f * elapsed);
+                }
+                else {
+                    _car_speed = fminf(0.0f, _car_speed + 1.0f * elapsed);
+                }
             }
 
             if (get_key(VK_RIGHT).held) {
@@ -89,10 +97,15 @@ namespace olc {
             }
 
             if (fabs(_car_curv_accum - _track_curv_accum) >= 0.8f) {
-                _car_speed -= 5.0f * elapsed;
+                if (_car_speed > 0.0f) {
+                    _car_speed = fmaxf(0.0f, _car_speed - 5.0f * elapsed);
+                }
+                else {
+                    _car_speed = fminf(0.0f, _car_speed + 5.0f * elapsed);
+                }
             }
 
-            _car_speed = std::clamp(_car_speed, 0.0f, 1.0f);
+            _car_speed = std::clamp(_car_speed, -1.0f, 1.0f);
             _car_dist += 70.0f * _car_speed * elapsed;
             if (_car_dist >= _track_dist_total) {
                 _car_dist -= _track_dist_total;
@@ -114,8 +127,8 @@ namespace olc {
 
             float target_curvature = _track[track_section].curvature;
             // gradually change curvature to target curvature over 1 sec
-            _curvature += (target_curvature - _curvature) * elapsed * _car_speed;
-            _track_curv_accum += _curvature * elapsed * _car_speed;
+            _curvature += (target_curvature - _curvature) * elapsed * abs(_car_speed);
+            _track_curv_accum += _curvature * elapsed * abs(_car_speed);
 
             // draw sky
             for (auto y = 0; y < height() / 2; ++y) {
