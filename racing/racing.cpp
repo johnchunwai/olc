@@ -31,6 +31,8 @@ namespace olc {
         float _track_curv_accum = 0.0f;
         float _car_curv_accum = 0.0f;
 
+        // when reach 1, passed a lap
+        int _lap_progress = 0;
         float _lap_time = 0.0f;
         list<float> _lap_time_hist{};
 
@@ -73,7 +75,7 @@ namespace olc {
             int car_dir = dir_neutral;
 
             if (get_key(VK_UP).held) {
-                _car_speed += 2.0f * elapsed;
+                _car_speed += 2.5f * elapsed;
             }
             else if (get_key(VK_DOWN).held) {
                 _car_speed -= 2.0f * elapsed;
@@ -105,13 +107,23 @@ namespace olc {
                 }
             }
 
-            _car_speed = std::clamp(_car_speed, -1.0f, 1.0f);
+            _car_speed = std::clamp(_car_speed, -1.0f, 1.5f);
+            
             _car_dist += 70.0f * _car_speed * elapsed;
             if (_car_dist >= _track_dist_total) {
+                ++_lap_progress;
                 _car_dist -= _track_dist_total;
+            }
+            else if (_car_dist < 0) {
+                --_lap_progress;
+                _car_dist += _track_dist_total;
+            }
+
+            if (_lap_progress == 1) {
                 _lap_time_hist.push_front(_lap_time);
                 _lap_time_hist.pop_back();
                 _lap_time = 0.0f;
+                _lap_progress = 0;
             }
             _lap_time += elapsed;
 
@@ -230,9 +242,11 @@ namespace olc {
             int stats_y = 0;
             draw_string(0, stats_y++, L"Distance: " + to_wstring(_car_dist));
             draw_string(0, stats_y++, L"Target Curvature: " + to_wstring(target_curvature));
+            draw_string(0, stats_y++, L"Current Track Curvature: " + to_wstring(_curvature));
             draw_string(0, stats_y++, L"Track Curvature Accum: " + to_wstring(_track_curv_accum));
             draw_string(0, stats_y++, L"Car Curvature Accum: " + to_wstring(_car_curv_accum));
             draw_string(0, stats_y++, L"Car Speed: " + to_wstring(_car_speed));
+            draw_string(0, stats_y++, L"Lap progress: " + to_wstring(_lap_progress + _car_dist / _track_dist_total));
 
             auto time2string = [](float t) {
                 int min = static_cast<int>(t / 60.0f);
